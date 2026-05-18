@@ -1,0 +1,2 @@
+"""StockSight test suite."""
+

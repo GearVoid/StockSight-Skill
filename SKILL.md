@@ -33,15 +33,18 @@ For a one-command path, use `scripts/report.py`:
 python scripts/report.py 002346 --mode detailed --html --out reports/002346.html
 ```
 
-The script prints Markdown by default, writes HTML when `--html` is set, and skips news unless `--news` is set and a news API key is configured.
+The script prints Markdown by default, writes HTML when `--html` is set, exports stable PDF through local headless Edge/Chrome when `--pdf` is set, and can fall back to a text PDF in restricted browser environments.
+Use `--pdf-engine browser` when the user needs the HTML-preserving renderer, or `--pdf-engine text` when reliability is more important than full visual fidelity.
+It skips news unless `--news` is set and a news API key is configured.
 It normalizes suspicious quote metrics before detection and uses announcement/earnings/anomaly news queries when news is enabled.
 
 ## Provider Guidance
 
 - Use `TencentDataSource` for A-share and Hong Kong quote data when available.
-- Use `SinaDataSource` when US stocks are included or as a fallback quote provider.
+- Use `YahooFinanceDataSource` for US tickers when no paid market-data key is available.
+- Use `SinaDataSource` as a fallback quote provider when Yahoo or Tencent cannot return data.
 - Use `EastMoneyDataSource` for A-share quotes and optional sector benchmark support.
-- Prefer `DataSourceFactory` when chaining multiple providers.
+- Prefer `DataSourceFactory` or `scripts/report.py --provider auto` when chaining multiple providers.
 
 ## Configuration
 
