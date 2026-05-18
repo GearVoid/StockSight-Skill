@@ -20,9 +20,12 @@ def detect_market(code: str) -> str:
         A股沪市: 6/5/9 开头
         A股深市: 0/3 开头
     """
-    if len(code) == 5:
+    normalized = code.strip()
+    if normalized.isalpha():
+        return "us"
+    if len(normalized) == 5 and normalized.isdigit():
         return "hk"
-    if code.startswith("6") or code.startswith("5") or code.startswith("9"):
+    if normalized.startswith("6") or normalized.startswith("5") or normalized.startswith("9"):
         return "sh"
     return "sz"
 
@@ -53,6 +56,8 @@ def detect_sina_prefix(code: str, market_hint: str = "") -> str:
         return "gb_"
     if market_hint == "hk":
         return "hk"
+    if code.strip().isalpha():
+        return "gb_"
 
     return detect_market(code)
 

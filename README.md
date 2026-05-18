@@ -2,6 +2,11 @@
 
 StockSight 是一个给 Codex / agent 使用的股票异动分析 skill，用于获取 A 股、港股、美股行情，检测量比、换手率、收益偏离等技术异动，并生成 Markdown 或 HTML 风格的风险报告。
 
+![TSLA report overview](docs/images/tsla-report-overview.png)
+
+![TSLA risk dashboard and radar](docs/images/tsla-report-risk-gauge.png)
+
+
 ## 功能
 
 - 通过腾讯财经、新浪财经、东方财富等 provider 标准化行情数据
@@ -97,9 +102,16 @@ StockSight/
 
 StockSight is a Codex/agent skill for stock anomaly analysis. It fetches A-share, Hong Kong, and US equity quotes, detects unusual volume ratio, turnover, and return signals, and renders Markdown or HTML risk reports.
 
+![TSLA report overview](docs/images/tsla-report-overview.png)
+
+![TSLA report risk dashboard and signal radar](docs/images/tsla-report-risk-gauge.png)
+
+![TSLA report data quality and tables](docs/images/tsla-report-radar.png)
+
+
 ## Capabilities
 
-- Normalize market data through Tencent, Sina, and EastMoney providers
+- Normalize market data through Tencent, Yahoo Finance, Sina, and EastMoney providers
 - Normalize suspicious quote fields before anomaly detection
 - Detect volume-ratio deviation, high turnover, and excess-return anomaly signals
 - Generate standard multi-stock reports, detailed single-stock reports, and browser-ready HTML reports
@@ -125,6 +137,12 @@ Generate a report with one command:
 python scripts/report.py 002346 --mode detailed --html --out reports/002346.html
 ```
 
+US tickers can use the Yahoo Finance provider explicitly:
+
+```bash
+python scripts/report.py AAPL --provider yahoo --mode detailed --html --out reports/AAPL.html
+```
+
 Markdown reports:
 
 - `render_standard_report(data)` for multi-stock or daily reports
@@ -137,10 +155,27 @@ HTML reports:
 
 HTML output is a complete self-contained page with built-in CSS bar and pie charts. It does not require JavaScript, images, or external stylesheets.
 
+Stable PDF export uses local headless Edge/Chrome, so it avoids the layout drift of manual browser printing:
+
+```bash
+python scripts/report.py 002346 --mode detailed --pdf --pdf-out reports/002346.pdf
+```
+
+Use `--pdf-engine browser` to require the HTML-preserving browser renderer, or
+`--pdf-engine text` for a robust text PDF fallback in restricted environments.
+
 Generate with news aggregation:
 
 ```bash
 python scripts/report.py 002346 --mode detailed --news --html --out reports/002346.html
+```
+
+## Testing
+
+The minimal test suite uses Python's built-in `unittest` runner and does not require extra test dependencies:
+
+```bash
+python -m unittest discover -s tests -v
 ```
 
 ## Configuration

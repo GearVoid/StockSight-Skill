@@ -3,5 +3,11 @@
 from .eastmoney import EastMoneyDataSource
 from .tencent import TencentDataSource
 from .sina import SinaDataSource
+from .yahoo import YahooFinanceDataSource
 
-__all__ = ["EastMoneyDataSource", "TencentDataSource", "SinaDataSource"]
+__all__ = [
+    "EastMoneyDataSource",
+    "TencentDataSource",
+    "SinaDataSource",
+    "YahooFinanceDataSource",
+]

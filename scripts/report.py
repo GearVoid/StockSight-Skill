@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable, List, Optional, Sequence
@@ -20,8 +21,18 @@ from formatter import (  # noqa: E402
     render_standard_report,
     validate_report,
 )
-from providers import EastMoneyDataSource, SinaDataSource, TencentDataSource  # noqa: E402
+from providers import (  # noqa: E402
+    EastMoneyDataSource,
+    SinaDataSource,
+    TencentDataSource,
+    YahooFinanceDataSource,
+)
 from news import search_configured_news  # noqa: E402
+from scripts.pdf_export import (  # noqa: E402
+    PdfExportError,
+    export_pdf_from_html,
+    export_text_pdf,
+)
 
 import logging
 
@@ -45,9 +56,9 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--provider",
-        choices=["auto", "tencent", "sina", "eastmoney"],
+        choices=["auto", "tencent", "yahoo", "sina", "eastmoney"],
         default="auto",
-        help="Quote provider. auto uses Tencent, Sina, then EastMoney failover.",
+        help="Quote provider. auto uses Tencent, Yahoo, Sina, then EastMoney failover.",
     )
     parser.add_argument(
         "--news",
@@ -66,9 +77,30 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         help="Also generate a self-contained HTML report.",
     )
     parser.add_argument(
+        "--pdf",
+        action="store_true",
+        help="Also export a stable PDF through local headless Edge/Chrome.",
+    )
+    parser.add_argument(
+        "--pdf-engine",
+        choices=["auto", "browser", "text"],
+        default="auto",
+        help="PDF engine. auto uses browser first, then text fallback; browser preserves HTML visuals.",
+    )
+    parser.add_argument(
         "--out",
         type=Path,
-        help="Output path. With --html this is the HTML path; otherwise it is the Markdown path.",
+        help="Output path. With --html this is HTML; with --pdf only this is PDF; otherwise Markdown.",
+    )
+    parser.add_argument(
+        "--pdf-out",
+        type=Path,
+        help="Optional PDF output path. Defaults next to the HTML path or outputs/<code>-stocksight-report.pdf.",
+    )
+    parser.add_argument(
+        "--browser-path",
+        type=Path,
+        help="Optional path to msedge/chrome/chromium for PDF export.",
     )
     parser.add_argument(
         "--markdown-out",
@@ -107,9 +139,11 @@ def _source_chain(provider: str):
         return [TencentDataSource()]
     if provider == "sina":
         return [SinaDataSource()]
+    if provider == "yahoo":
+        return [YahooFinanceDataSource()]
     if provider == "eastmoney":
         return [EastMoneyDataSource()]
-    return [TencentDataSource(), SinaDataSource(), EastMoneyDataSource()]
+    return [TencentDataSource(), YahooFinanceDataSource(), SinaDataSource(), EastMoneyDataSource()]
 
 
 def _fetch_quotes(codes: Sequence[str], provider: str):
@@ -196,6 +230,26 @@ def _write_text(path: Optional[Path], text: str) -> Optional[Path]:
     return path.resolve()
 
 
+def _default_output_path(stock: StockData, suffix: str) -> Path:
+    return Path("outputs") / f"{stock.code}-stocksight-report{suffix}"
+
+
+def _resolve_html_path(args, stock: StockData) -> Path:
+    if args.html and args.out:
+        return args.out
+    return _default_output_path(stock, ".html")
+
+
+def _resolve_pdf_path(args, html_path: Optional[Path], stock: StockData) -> Path:
+    if args.pdf_out:
+        return args.pdf_out
+    if args.pdf and not args.html and args.out:
+        return args.out
+    if html_path is not None:
+        return html_path.with_suffix(".pdf")
+    return _default_output_path(stock, ".pdf")
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = _build_arg_parser()
     args = parser.parse_args(argv)
@@ -240,16 +294,46 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             print(str(validation), file=sys.stderr)
             return 3
 
-    markdown_path = _write_text(args.markdown_out if args.html else args.out, markdown)
+    markdown_path = _write_text(
+        args.markdown_out if (args.html or args.pdf) else args.out,
+        markdown,
+    )
     if markdown_path is None:
         print(markdown)
     else:
         print(f"Markdown report: {markdown_path}")
 
+    html_text = render_html_report(data, mode=mode) if (args.html or args.pdf) else ""
+    resolved_html: Optional[Path] = None
     if args.html:
-        html_path = args.out or Path("outputs") / f"{stocks[0].code}-stocksight-report.html"
-        resolved_html = _write_text(html_path, render_html_report(data, mode=mode))
+        html_path = _resolve_html_path(args, stocks[0])
+        resolved_html = _write_text(html_path, html_text)
         print(f"HTML report: {resolved_html}")
+
+    if args.pdf:
+        pdf_path = _resolve_pdf_path(args, resolved_html, stocks[0])
+        try:
+            if args.pdf_engine == "text":
+                resolved_pdf = export_text_pdf(markdown, pdf_path, data.title)
+            else:
+                try:
+                    if resolved_html is not None:
+                        source_html = resolved_html
+                        resolved_pdf = export_pdf_from_html(source_html, pdf_path, args.browser_path)
+                    else:
+                        with tempfile.TemporaryDirectory(prefix="stocksight-pdf-") as tmpdir:
+                            source_html = Path(tmpdir) / f"{stocks[0].code}-stocksight-report.html"
+                            source_html.write_text(html_text, encoding="utf-8")
+                            resolved_pdf = export_pdf_from_html(source_html, pdf_path, args.browser_path)
+                except PdfExportError:
+                    if args.pdf_engine == "browser":
+                        raise
+                    print("Browser PDF export failed; falling back to text PDF.", file=sys.stderr)
+                    resolved_pdf = export_text_pdf(markdown, pdf_path, data.title)
+        except PdfExportError as exc:
+            print(f"PDF export failed: {exc}", file=sys.stderr)
+            return 4
+        print(f"PDF report: {resolved_pdf}")
 
     if failed:
         print(f"Skipped failed codes: {', '.join(failed)}", file=sys.stderr)
