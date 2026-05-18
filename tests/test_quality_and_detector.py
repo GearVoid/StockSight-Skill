@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 import unittest
 
 from core import detect_anomalies, normalize_quote_data
@@ -31,6 +32,24 @@ class QualityAndDetectorTests(unittest.TestCase):
             [signal for signal in signals if "turnover" in signal.risk_type.lower()]
         )
 
+
+
+
+    def test_detector_thresholds_accepts_old_chinese_field_names(self):
+        """Backward compat: Chinese field names still work."""
+        from core.detector import DetectorThresholds
+        t = DetectorThresholds(
+            volume_ratio_关注=9.99,       # simplified watch
+            turnover_rate_關注=8.88,      # traditional watch
+            excess_return_警告=7.77,       # warn (same in both)
+            change_abs_危险=6.66,           # simplified danger
+            turnover_rate_pct_危險=5.55,     # traditional danger
+        )
+        self.assertAlmostEqual(t.volume_ratio_watch, 9.99)
+        self.assertAlmostEqual(t.turnover_rate_watch, 8.88)
+        self.assertAlmostEqual(t.excess_return_warn, 7.77)
+        self.assertAlmostEqual(t.change_abs_danger, 6.66)
+        self.assertAlmostEqual(t.turnover_rate_pct_danger, 5.55)
 
 if __name__ == "__main__":
     unittest.main()

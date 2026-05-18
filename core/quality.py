@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """Quote quality checks and normalization."""
 
 from __future__ import annotations

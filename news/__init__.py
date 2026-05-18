@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """News 新闻搜索模块"""
 
 from .base import NewsProvider

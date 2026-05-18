@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """报告输出校验器
 
 对标 VISUAL_SPECS.md Section 7（模板验证规则）。

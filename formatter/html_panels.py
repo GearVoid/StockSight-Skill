@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """Table, data quality, news, and metric HTML sections."""
 
 from typing import Dict, List, Sequence, Tuple

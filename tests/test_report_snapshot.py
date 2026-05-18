@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 import tempfile
 import unittest
 from pathlib import Path

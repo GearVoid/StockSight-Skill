@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """Small HTML rendering utilities for StockSight reports."""
 
 from html import escape

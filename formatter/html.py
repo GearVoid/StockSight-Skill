@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """HTML report rendering.
 
 The HTML output is a self-contained premium report page. It intentionally uses

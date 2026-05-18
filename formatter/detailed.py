@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """详细模式报告渲染
 
 对标 VISUAL_SPECS.md Section 6.3（详细模式）和 EXAMPLES.md Example 2。

@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """Shared test fixtures for StockSight."""
 
 from core import NewsItem, ReportData, RiskSignal, StockData

@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """异动检测核心算法
 
 基于相对基准的三维异动检测：
@@ -35,72 +36,93 @@ class DetectorThresholds:
     """异动检测阈值参数，支持按需定制"""
 
     # 量比偏离（倍数 vs 同批均值）
-    volume_ratio_关注: float = 1.5
-    volume_ratio_警告: float = 2.0
-    volume_ratio_危险: float = 3.0
+    volume_ratio_watch: float = 1.5
+    volume_ratio_warn: float = 2.0
+    volume_ratio_danger: float = 3.0
 
     # 换手率偏离（倍数 vs 同批均值）
-    turnover_rate_关注: float = 1.5
-    turnover_rate_警告: float = 2.5
-    turnover_rate_危险: float = 4.0
+    turnover_rate_watch: float = 1.5
+    turnover_rate_warn: float = 2.5
+    turnover_rate_danger: float = 4.0
 
     # 绝对阈值（n=1 单只场景回退）
-    turnover_rate_pct_关注: float = 5.0
-    turnover_rate_pct_警告: float = 10.0
-    turnover_rate_pct_危险: float = 15.0
+    turnover_rate_pct_watch: float = 5.0
+    turnover_rate_pct_warn: float = 10.0
+    turnover_rate_pct_danger: float = 15.0
 
     # 超额收益（百分点）
-    excess_return_关注: float = 2.5
-    excess_return_警告: float = 5.0
-    excess_return_危险: float = 8.0
+    excess_return_watch: float = 2.5
+    excess_return_warn: float = 5.0
+    excess_return_danger: float = 8.0
 
     # 涨跌幅绝对阈值（单只场景回退）
-    change_abs_关注: float = 5.0
-    change_abs_警告: float = 7.0
-    change_abs_危险: float = 9.8
+    change_abs_watch: float = 5.0
+    change_abs_warn: float = 7.0
+    change_abs_danger: float = 9.8
 
     def __init__(
         self,
-        volume_ratio_关注: float = 1.5,
-        volume_ratio_警告: float = 2.0,
-        volume_ratio_危险: float = 3.0,
-        turnover_rate_关注: float = 1.5,
-        turnover_rate_警告: float = 2.5,
-        turnover_rate_危险: float = 4.0,
-        turnover_rate_pct_关注: float = 5.0,
-        turnover_rate_pct_警告: float = 10.0,
-        turnover_rate_pct_危险: float = 15.0,
-        excess_return_关注: float = 2.5,
-        excess_return_警告: float = 5.0,
-        excess_return_危险: float = 8.0,
-        change_abs_关注: float = 5.0,
-        change_abs_警告: float = 7.0,
-        change_abs_危险: float = 9.8,
+        volume_ratio_watch: float = 1.5,
+        volume_ratio_warn: float = 2.0,
+        volume_ratio_danger: float = 3.0,
+        turnover_rate_watch: float = 1.5,
+        turnover_rate_warn: float = 2.5,
+        turnover_rate_danger: float = 4.0,
+        turnover_rate_pct_watch: float = 5.0,
+        turnover_rate_pct_warn: float = 10.0,
+        turnover_rate_pct_danger: float = 15.0,
+        excess_return_watch: float = 2.5,
+        excess_return_warn: float = 5.0,
+        excess_return_danger: float = 8.0,
+        change_abs_watch: float = 5.0,
+        change_abs_warn: float = 7.0,
+        change_abs_danger: float = 9.8,
         **legacy_kwargs,
     ):
+        # Backward-compat: accept old Chinese field names (simplified + traditional)
         legacy_map = {
-            "volume_ratio_關注": "volume_ratio_关注",
-            "turnover_rate_關注": "turnover_rate_关注",
-            "turnover_rate_pct_關注": "turnover_rate_pct_关注",
-            "excess_return_關注": "excess_return_关注",
-            "change_abs_關注": "change_abs_关注",
+            "volume_ratio_关注": "volume_ratio_watch",       # simplified
+            "volume_ratio_關注": "volume_ratio_watch",       # traditional
+            "volume_ratio_警告": "volume_ratio_warn",        # same in both
+            "volume_ratio_危险": "volume_ratio_danger",      # simplified
+            "volume_ratio_危險": "volume_ratio_danger",      # traditional
+            "turnover_rate_关注": "turnover_rate_watch",       # simplified
+            "turnover_rate_關注": "turnover_rate_watch",       # traditional
+            "turnover_rate_警告": "turnover_rate_warn",        # same in both
+            "turnover_rate_危险": "turnover_rate_danger",      # simplified
+            "turnover_rate_危險": "turnover_rate_danger",      # traditional
+            "turnover_rate_pct_关注": "turnover_rate_pct_watch",       # simplified
+            "turnover_rate_pct_關注": "turnover_rate_pct_watch",       # traditional
+            "turnover_rate_pct_警告": "turnover_rate_pct_warn",        # same in both
+            "turnover_rate_pct_危险": "turnover_rate_pct_danger",      # simplified
+            "turnover_rate_pct_危險": "turnover_rate_pct_danger",      # traditional
+            "excess_return_关注": "excess_return_watch",       # simplified
+            "excess_return_關注": "excess_return_watch",       # traditional
+            "excess_return_警告": "excess_return_warn",        # same in both
+            "excess_return_危险": "excess_return_danger",      # simplified
+            "excess_return_危險": "excess_return_danger",      # traditional
+            "change_abs_关注": "change_abs_watch",       # simplified
+            "change_abs_關注": "change_abs_watch",       # traditional
+            "change_abs_警告": "change_abs_warn",        # same in both
+            "change_abs_危险": "change_abs_danger",      # simplified
+            "change_abs_危險": "change_abs_danger",      # traditional
         }
         values = {
-            "volume_ratio_关注": volume_ratio_关注,
-            "volume_ratio_警告": volume_ratio_警告,
-            "volume_ratio_危险": volume_ratio_危险,
-            "turnover_rate_关注": turnover_rate_关注,
-            "turnover_rate_警告": turnover_rate_警告,
-            "turnover_rate_危险": turnover_rate_危险,
-            "turnover_rate_pct_关注": turnover_rate_pct_关注,
-            "turnover_rate_pct_警告": turnover_rate_pct_警告,
-            "turnover_rate_pct_危险": turnover_rate_pct_危险,
-            "excess_return_关注": excess_return_关注,
-            "excess_return_警告": excess_return_警告,
-            "excess_return_危险": excess_return_危险,
-            "change_abs_关注": change_abs_关注,
-            "change_abs_警告": change_abs_警告,
-            "change_abs_危险": change_abs_危险,
+            "volume_ratio_watch": volume_ratio_watch,
+            "volume_ratio_warn": volume_ratio_warn,
+            "volume_ratio_danger": volume_ratio_danger,
+            "turnover_rate_watch": turnover_rate_watch,
+            "turnover_rate_warn": turnover_rate_warn,
+            "turnover_rate_danger": turnover_rate_danger,
+            "turnover_rate_pct_watch": turnover_rate_pct_watch,
+            "turnover_rate_pct_warn": turnover_rate_pct_warn,
+            "turnover_rate_pct_danger": turnover_rate_pct_danger,
+            "excess_return_watch": excess_return_watch,
+            "excess_return_warn": excess_return_warn,
+            "excess_return_danger": excess_return_danger,
+            "change_abs_watch": change_abs_watch,
+            "change_abs_warn": change_abs_warn,
+            "change_abs_danger": change_abs_danger,
         }
         for key, value in legacy_kwargs.items():
             mapped = legacy_map.get(key)
@@ -121,26 +143,26 @@ DEFAULT_THRESHOLDS = DetectorThresholds()
 
 def _level_from_threshold(
     value: float,
-    threshold_关注: float,
-    threshold_警告: float,
-    threshold_危险: float,
+    threshold_watch: float,
+    threshold_warn: float,
+    threshold_danger: float,
 ) -> int:
     """根据阈值判断风险等级
 
     Args:
         value: 检测值
-        threshold_关注: 关注阈值
-        threshold_警告: 警告阈值
-        threshold_危险: 危险阈值
+        threshold_watch: 关注阈值
+        threshold_warn: 警告阈值
+        threshold_danger: 危险阈值
 
     Returns:
         1=关注🔸, 2=警告🔶, 3=危险🔴, 0=无信号
     """
-    if value >= threshold_危险:
+    if value >= threshold_danger:
         return 3
-    if value >= threshold_警告:
+    if value >= threshold_warn:
         return 2
-    if value >= threshold_关注:
+    if value >= threshold_watch:
         return 1
     return 0
 
@@ -167,9 +189,9 @@ def _detect_volume_ratio(
         ratio = vr / group_mean
         level = _level_from_threshold(
             ratio,
-            thresholds.volume_ratio_关注,
-            thresholds.volume_ratio_警告,
-            thresholds.volume_ratio_危险,
+            thresholds.volume_ratio_watch,
+            thresholds.volume_ratio_warn,
+            thresholds.volume_ratio_danger,
         )
         deviation_unit = "x"
         deviation_val = ratio
@@ -212,9 +234,9 @@ def _detect_turnover_rate(
         ratio = tr / group_mean
         level = _level_from_threshold(
             ratio,
-            thresholds.turnover_rate_关注,
-            thresholds.turnover_rate_警告,
-            thresholds.turnover_rate_危险,
+            thresholds.turnover_rate_watch,
+            thresholds.turnover_rate_warn,
+            thresholds.turnover_rate_danger,
         )
         deviation_unit = "x"
         deviation_val = ratio
@@ -226,9 +248,9 @@ def _detect_turnover_rate(
         # 绝对阈值
         level = _level_from_threshold(
             tr,
-            thresholds.turnover_rate_pct_关注,
-            thresholds.turnover_rate_pct_警告,
-            thresholds.turnover_rate_pct_危险,
+            thresholds.turnover_rate_pct_watch,
+            thresholds.turnover_rate_pct_warn,
+            thresholds.turnover_rate_pct_danger,
         )
         deviation_unit = "%"
         deviation_val = tr
@@ -265,9 +287,9 @@ def _detect_excess_return(
         diff = abs(change - group_mean_change)
         level = _level_from_threshold(
             diff,
-            thresholds.excess_return_关注,
-            thresholds.excess_return_警告,
-            thresholds.excess_return_危险,
+            thresholds.excess_return_watch,
+            thresholds.excess_return_warn,
+            thresholds.excess_return_danger,
         )
         direction = "跑赢" if change > group_mean_change else "跑输"
         deviation_unit = "百分点"
@@ -282,9 +304,9 @@ def _detect_excess_return(
         abs_change = abs(change)
         level = _level_from_threshold(
             abs_change,
-            thresholds.change_abs_关注,
-            thresholds.change_abs_警告,
-            thresholds.change_abs_危险,
+            thresholds.change_abs_watch,
+            thresholds.change_abs_warn,
+            thresholds.change_abs_danger,
         )
         deviation_unit = "%"
         deviation_val = abs_change
