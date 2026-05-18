@@ -30,34 +30,85 @@ logger = logging.getLogger(__name__)
 # 阈值配置
 # =============================================================================
 
-@dataclass
+@dataclass(init=False)
 class DetectorThresholds:
     """异动检测阈值参数，支持按需定制"""
 
     # 量比偏离（倍数 vs 同批均值）
-    volume_ratio_關注: float = 1.5
+    volume_ratio_关注: float = 1.5
     volume_ratio_警告: float = 2.0
     volume_ratio_危险: float = 3.0
 
     # 换手率偏离（倍数 vs 同批均值）
-    turnover_rate_關注: float = 1.5
+    turnover_rate_关注: float = 1.5
     turnover_rate_警告: float = 2.5
     turnover_rate_危险: float = 4.0
 
     # 绝对阈值（n=1 单只场景回退）
-    turnover_rate_pct_關注: float = 5.0
+    turnover_rate_pct_关注: float = 5.0
     turnover_rate_pct_警告: float = 10.0
     turnover_rate_pct_危险: float = 15.0
 
     # 超额收益（百分点）
-    excess_return_關注: float = 2.5
+    excess_return_关注: float = 2.5
     excess_return_警告: float = 5.0
     excess_return_危险: float = 8.0
 
-    # 卷阈值（绝对值，单只场景回退）
-    change_abs_關注: float = 5.0
+    # 涨跌幅绝对阈值（单只场景回退）
+    change_abs_关注: float = 5.0
     change_abs_警告: float = 7.0
     change_abs_危险: float = 9.8
+
+    def __init__(
+        self,
+        volume_ratio_关注: float = 1.5,
+        volume_ratio_警告: float = 2.0,
+        volume_ratio_危险: float = 3.0,
+        turnover_rate_关注: float = 1.5,
+        turnover_rate_警告: float = 2.5,
+        turnover_rate_危险: float = 4.0,
+        turnover_rate_pct_关注: float = 5.0,
+        turnover_rate_pct_警告: float = 10.0,
+        turnover_rate_pct_危险: float = 15.0,
+        excess_return_关注: float = 2.5,
+        excess_return_警告: float = 5.0,
+        excess_return_危险: float = 8.0,
+        change_abs_关注: float = 5.0,
+        change_abs_警告: float = 7.0,
+        change_abs_危险: float = 9.8,
+        **legacy_kwargs,
+    ):
+        legacy_map = {
+            "volume_ratio_關注": "volume_ratio_关注",
+            "turnover_rate_關注": "turnover_rate_关注",
+            "turnover_rate_pct_關注": "turnover_rate_pct_关注",
+            "excess_return_關注": "excess_return_关注",
+            "change_abs_關注": "change_abs_关注",
+        }
+        values = {
+            "volume_ratio_关注": volume_ratio_关注,
+            "volume_ratio_警告": volume_ratio_警告,
+            "volume_ratio_危险": volume_ratio_危险,
+            "turnover_rate_关注": turnover_rate_关注,
+            "turnover_rate_警告": turnover_rate_警告,
+            "turnover_rate_危险": turnover_rate_危险,
+            "turnover_rate_pct_关注": turnover_rate_pct_关注,
+            "turnover_rate_pct_警告": turnover_rate_pct_警告,
+            "turnover_rate_pct_危险": turnover_rate_pct_危险,
+            "excess_return_关注": excess_return_关注,
+            "excess_return_警告": excess_return_警告,
+            "excess_return_危险": excess_return_危险,
+            "change_abs_关注": change_abs_关注,
+            "change_abs_警告": change_abs_警告,
+            "change_abs_危险": change_abs_危险,
+        }
+        for key, value in legacy_kwargs.items():
+            mapped = legacy_map.get(key)
+            if mapped is None:
+                raise TypeError(f"DetectorThresholds got unexpected keyword argument '{key}'")
+            values[mapped] = value
+        for key, value in values.items():
+            setattr(self, key, value)
 
 
 # 默认阈值
@@ -70,7 +121,7 @@ DEFAULT_THRESHOLDS = DetectorThresholds()
 
 def _level_from_threshold(
     value: float,
-    threshold_關注: float,
+    threshold_关注: float,
     threshold_警告: float,
     threshold_危险: float,
 ) -> int:
@@ -78,7 +129,7 @@ def _level_from_threshold(
 
     Args:
         value: 检测值
-        threshold_關注: 关注阈值
+        threshold_关注: 关注阈值
         threshold_警告: 警告阈值
         threshold_危险: 危险阈值
 
@@ -89,7 +140,7 @@ def _level_from_threshold(
         return 3
     if value >= threshold_警告:
         return 2
-    if value >= threshold_關注:
+    if value >= threshold_关注:
         return 1
     return 0
 
@@ -116,7 +167,7 @@ def _detect_volume_ratio(
         ratio = vr / group_mean
         level = _level_from_threshold(
             ratio,
-            thresholds.volume_ratio_關注,
+            thresholds.volume_ratio_关注,
             thresholds.volume_ratio_警告,
             thresholds.volume_ratio_危险,
         )
@@ -153,7 +204,7 @@ def _detect_turnover_rate(
     有同批数据时使用相对倍数，单只时回退绝对百分比阈值。
     """
     tr = stock.turnover_rate
-    if tr <= 0:
+    if tr <= 0 or tr > 100:
         return None
 
     if n_stocks >= 2 and group_mean > 0:
@@ -161,7 +212,7 @@ def _detect_turnover_rate(
         ratio = tr / group_mean
         level = _level_from_threshold(
             ratio,
-            thresholds.turnover_rate_關注,
+            thresholds.turnover_rate_关注,
             thresholds.turnover_rate_警告,
             thresholds.turnover_rate_危险,
         )
@@ -175,7 +226,7 @@ def _detect_turnover_rate(
         # 绝对阈值
         level = _level_from_threshold(
             tr,
-            thresholds.turnover_rate_pct_關注,
+            thresholds.turnover_rate_pct_关注,
             thresholds.turnover_rate_pct_警告,
             thresholds.turnover_rate_pct_危险,
         )
@@ -214,7 +265,7 @@ def _detect_excess_return(
         diff = abs(change - group_mean_change)
         level = _level_from_threshold(
             diff,
-            thresholds.excess_return_關注,
+            thresholds.excess_return_关注,
             thresholds.excess_return_警告,
             thresholds.excess_return_危险,
         )
@@ -231,7 +282,7 @@ def _detect_excess_return(
         abs_change = abs(change)
         level = _level_from_threshold(
             abs_change,
-            thresholds.change_abs_關注,
+            thresholds.change_abs_关注,
             thresholds.change_abs_警告,
             thresholds.change_abs_危险,
         )

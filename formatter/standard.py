@@ -24,7 +24,10 @@ from .base import (
     market_tag,
     metric_quality_notes,
     render_badge,
+    render_data_quality_section,
+    render_highest_risk_badge,
     render_metric_strip,
+    render_news_details_standard,
     render_risk_distribution,
     render_signal_bar,
     render_signal_composition,
@@ -46,11 +49,7 @@ def _stock_level(stock: StockData, signals: List[RiskSignal]) -> int:
 
 
 def _highest_risk(signals: List[RiskSignal]) -> str:
-    """整份报告最高风险标签。"""
-    max_level = max((sig.level for sig in signals), default=0)
-    if max_level == 0:
-        return f"{EmojiMap.OP_BUY} {render_badge('平稳')}"
-    return f"{fmt_signal_level(max_level)} {render_signal_bar(max_level)}"
+    return render_highest_risk_badge(signals)
 
 
 def _anomaly_flag(stock: StockData, signals: List[RiskSignal]) -> str:
@@ -83,13 +82,7 @@ def _build_stock_table(stocks: List[StockData], signals: List[RiskSignal]) -> st
 
 
 def _render_data_quality(stocks: List[StockData]) -> str:
-    """渲染数据完整性提示。"""
-    notes = metric_quality_notes(stocks)
-    if not notes:
-        return ""
-    lines = [f"## {EmojiMap.TIP} 数据完整性", ""]
-    lines.extend(f"- {note}" for note in notes)
-    return "\n".join(lines)
+    return render_data_quality_section(stocks)
 
 
 def _build_risk_table(signals: List[RiskSignal]) -> str:
@@ -153,19 +146,7 @@ def _render_market_pulse(data: ReportData) -> str:
 
 
 def _render_news_details(data: ReportData) -> str:
-    """渲染可折叠新闻区块。"""
-    if not data.news:
-        return ""
-    news_headers = ["来源", "标题", "时间"]
-    news_rows = [[n.source or "—", n.title or "—", n.published_at or "—"] for n in data.news[:5]]
-    return "\n".join([
-        "<details>",
-        f"<summary>{EmojiMap.NEWS} 相关资讯</summary>",
-        "",
-        render_table(news_headers, news_rows),
-        "",
-        "</details>",
-    ])
+    return render_news_details_standard(data.news)
 
 
 def render_standard_report(data: ReportData) -> str:

@@ -30,7 +30,10 @@ from .base import (
     market_tag,
     metric_quality_notes,
     render_badge,
+    render_data_quality_section,
+    render_highest_risk_badge,
     render_metric_strip,
+    render_news_details_detailed,
     render_risk_distribution,
     render_signal_bar,
     render_signal_composition,
@@ -84,11 +87,7 @@ def _risk_warnings(signals: List[RiskSignal]) -> str:
 
 
 def _highest_risk(signals: List[RiskSignal]) -> str:
-    """最高风险显示。"""
-    max_level = max((sig.level for sig in signals), default=0)
-    if max_level == 0:
-        return f"{EmojiMap.OP_BUY} {render_badge('平稳')}"
-    return f"{fmt_signal_level(max_level)} {render_signal_bar(max_level)}"
+    return render_highest_risk_badge(signals)
 
 
 def _render_core_panel(stock: StockData, signals: List[RiskSignal]) -> str:
@@ -104,34 +103,11 @@ def _render_core_panel(stock: StockData, signals: List[RiskSignal]) -> str:
 
 
 def _render_news_details(data: ReportData) -> str:
-    """渲染可折叠新闻区块。"""
-    if not data.news:
-        return ""
-    lines = [
-        "<details>",
-        f"<summary>{EmojiMap.NEWS} 相关资讯</summary>",
-        "",
-    ]
-    for item in data.news[:5]:
-        title = item.title or "—"
-        source = item.source or "—"
-        time = f"（{item.published_at}）" if item.published_at else ""
-        lines.append(f"[{source}] {title}{time}")
-        if item.snippet:
-            lines.append(f"  {EmojiMap.NOTE} {item.snippet}")
-        lines.append("")
-    lines.append("</details>")
-    return "\n".join(lines)
+    return render_news_details_detailed(data.news)
 
 
 def _render_data_quality(stocks: List[StockData]) -> str:
-    """渲染数据完整性提示。"""
-    notes = metric_quality_notes(stocks)
-    if not notes:
-        return ""
-    lines = [f"## {EmojiMap.TIP} 数据完整性", ""]
-    lines.extend(f"- {note}" for note in notes)
-    return "\n".join(lines)
+    return render_data_quality_section(stocks)
 
 
 def _dimension_table(stock: StockData, signals: List[RiskSignal]) -> str:
