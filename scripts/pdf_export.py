@@ -7,7 +7,6 @@ when manually printing from a visible browser window.
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 import tempfile
@@ -136,21 +135,6 @@ def export_pdf_from_html(
     return pdf_path
 
 
-def _find_cjk_font() -> Optional[Path]:
-    candidates = [
-        Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / "msyh.ttc",
-        Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / "simsun.ttc",
-        Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / "simhei.ttf",
-        Path("/System/Library/Fonts/PingFang.ttc"),
-        Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
-        Path("/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc"),
-    ]
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
-    return None
-
-
 def _wrap_text(line: str, max_chars: int = 82) -> list[str]:
     if len(line) <= max_chars:
         return [line]
@@ -172,18 +156,15 @@ def export_text_pdf(markdown: str, pdf_path: Path, title: str = "StockSight Repo
     try:
         from reportlab.lib.pagesizes import A4
         from reportlab.pdfbase import pdfmetrics
-        from reportlab.pdfbase.ttfonts import TTFont
+        from reportlab.pdfbase.cidfonts import UnicodeCIDFont
         from reportlab.pdfgen import canvas
     except ImportError as exc:
         raise PdfExportError(
             "Text PDF fallback requires reportlab. Install it with `pip install reportlab`."
         ) from exc
 
-    font_name = "Helvetica"
-    cjk_font = _find_cjk_font()
-    if cjk_font is not None:
-        font_name = "StockSightCJK"
-        pdfmetrics.registerFont(TTFont(font_name, str(cjk_font)))
+    font_name = "STSong-Light"
+    pdfmetrics.registerFont(UnicodeCIDFont(font_name))
 
     pdf_path = pdf_path.resolve()
     pdf_path.parent.mkdir(parents=True, exist_ok=True)
