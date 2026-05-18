@@ -193,10 +193,17 @@ def _validate_allowed_html(result: ValidationResult, text: str):
 
 def _validate_empty_data(result: ValidationResult, text: str):
     """规则 7：容错检查
-    
+
     - 所有股票失败时应有明确提示
     - 缺失数据使用了占位符
     """
     if "实时数据不可用" in text or "无可用数据" in text:
-        # 数据不可用提示存在，正常
-        pass
+        return
+
+    dash_count = text.count("—")
+    if dash_count == 0:
+        return
+
+    has_quality_note = "不可用" in text or "已显示为" in text
+    if not has_quality_note:
+        result.add_warning("报告中使用了 — 占位符但缺少数据完整性说明")

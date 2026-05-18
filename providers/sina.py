@@ -13,6 +13,7 @@ from typing import Dict, List, Optional
 import requests
 
 from core import DataSource, DataSourceError, FetchResult, StockData
+from core.market import detect_sina_prefix
 
 logger = logging.getLogger(__name__)
 
@@ -30,25 +31,7 @@ MARKET_PREFIX = {
 
 
 def _detect_prefix(code: str, market_hint: str = "") -> str:
-    """检测市场前缀
-
-    Args:
-        code: 股票代码
-        market_hint: 用户提示的市场（us/hk）
-
-    Returns:
-        新浪API前缀: sh, sz, hk, gb_
-    """
-    if market_hint == "us":
-        return "gb_"  # 美股格式 gb_aapl
-    if market_hint == "hk":
-        return "hk"
-
-    if len(code) == 5:
-        return "hk"
-    if code.startswith("6") or code.startswith("5") or code.startswith("9"):
-        return "sh"
-    return "sz"
+    return detect_sina_prefix(code, market_hint)
 
 
 def _parse_sina_response_line(raw: str) -> Optional[List[str]]:
@@ -132,7 +115,7 @@ def _parse_hk_fields(
         high=high,
         low=low,
         volume=volume,
-        amount=amount / 1000000,  # 原始单位是元，转万元
+        amount=amount / 10000,  # 元 → 万元
         volume_ratio=0.0,
         change_percent=change_percent,
         turnover_rate=0.0,
@@ -220,7 +203,8 @@ class SinaDataSource(DataSource):
         for code in codes:
             hint = hints.get(code, "")
             prefix = _detect_prefix(code, hint)
-            key = f"{prefix}{code}"
+            query_code = code.lower() if prefix == "gb_" else code
+            key = f"{prefix}{query_code}"
             market_codes.append(key)
             code_map[key] = code
 
@@ -237,8 +221,14 @@ class SinaDataSource(DataSource):
                     timeout=self._timeout,
                     headers={"Referer": "https://finance.sina.com.cn"},
                 )
+                if resp.status_code != 200:
+                    last_error = DataSourceError(f"HTTP {resp.status_code}")
+                    continue
                 resp.encoding = "gbk"
                 raw_text = resp.text
+                if raw_text.strip().lower().startswith("forbidden"):
+                    last_error = DataSourceError("HTTP 403 Forbidden")
+                    continue
                 break
             except requests.RequestException as e:
                 last_error = e

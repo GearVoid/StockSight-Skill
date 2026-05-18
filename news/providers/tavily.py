@@ -12,8 +12,7 @@ API 文档: https://docs.tavily.com/
 """
 
 import logging
-from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 import requests
 

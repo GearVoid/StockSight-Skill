@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Tuple
 import requests
 
 from core import DataSource, DataSourceError, FetchResult, StockData
+from core.market import to_eastmoney_secid
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +19,9 @@ logger = logging.getLogger(__name__)
 # API 端点与常量
 # =============================================================================
 
-STOCK_QUERY_URL = "http://push2.eastmoney.com/api/qt/stock/get"
-SECTOR_LIST_URL = "http://push2.eastmoney.com/api/qt/clist/get"
-SECTOR_CONSTIT_URL = "http://push2.eastmoney.com/api/qt/clist/get"
+STOCK_QUERY_URL = "https://push2.eastmoney.com/api/qt/stock/get"
+SECTOR_LIST_URL = "https://push2.eastmoney.com/api/qt/clist/get"
+SECTOR_CONSTIT_URL = "https://push2.eastmoney.com/api/qt/clist/get"
 
 UT = "fa5fd1943c7b386f172d6893dbfba10b"
 HEADERS = {
@@ -44,20 +45,7 @@ FIELDS_CONSTITUENT = "f12,f14,f50,f167,f168"
 
 
 def _to_secid(code: str) -> Optional[str]:
-    """股票代码 → secid（1.xxx 沪/0.xxx 深）
-
-    Args:
-        code: 股票代码，如 '600570', '002266'
-
-    Returns:
-        secid 格式字符串，如 '1.600570'，无效返回 None
-    """
-    code = code.strip()
-    if len(code) != 6:
-        return None
-    if code.startswith("6") or code.startswith("5") or code.startswith("9"):
-        return f"1.{code}"
-    return f"0.{code}"
+    return to_eastmoney_secid(code)
 
 
 class EastMoneyDataSource(DataSource):

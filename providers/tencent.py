@@ -13,6 +13,7 @@ from typing import Dict, List, Optional
 import requests
 
 from core import DataSource, DataSourceError, FetchResult, StockData
+from core.market import detect_market
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,8 @@ _FIELD_IDX_A = {
     "amount": 37,
     "volume_ratio": 38,
     "turnover_rate": 39,
+    "float_shares": 72,
+    "total_shares": 73,
 }
 
 # =============================================================================
@@ -72,12 +75,7 @@ def _detect_market(code: str) -> str:
         A股沪市: 6/5/9 开头
         A股深市: 0/3 开头
     """
-    if len(code) == 5:
-        return "hk"
-    if code.startswith("6") or code.startswith("5") or code.startswith("9"):
-        return "sh"
-    # 0xxx 深主板, 3xxx 创业板, 4xxx 老三板
-    return "sz"
+    return detect_market(code)
 
 
 def _parse_a_line(
@@ -100,6 +98,12 @@ def _parse_a_line(
         ts = timestamp or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         market = _detect_market(code)
 
+        volume = int(fields[idx["volume"]]) * 100  # 腾讯A股手转股
+        raw_turnover = float(fields[idx["turnover_rate"]] or 0)
+        turnover_rate, turnover_source = _derive_a_turnover_rate(
+            fields, volume, raw_turnover
+        )
+
         return StockData(
             code=code,
             name=fields[idx["name"]],
@@ -108,18 +112,46 @@ def _parse_a_line(
             open_price=float(fields[idx["open_price"]]),
             high=float(fields[idx["high"]]),
             low=float(fields[idx["low"]]),
-            volume=int(fields[idx["volume"]]) * 100,  # 腾讯A股手转股
+            volume=volume,
             amount=float(fields[idx["amount"]] or 0),
             volume_ratio=float(fields[idx["volume_ratio"]]),
             change_percent=float(fields[idx["change_percent"]]),
-            turnover_rate=float(fields[idx["turnover_rate"]] or 0),
+            turnover_rate=turnover_rate,
             timestamp=ts,
             market=market,
-            raw={"raw_text": line[:500]},
+            raw={
+                "raw_text": line[:500],
+                "raw_turnover_rate": raw_turnover,
+                "turnover_rate_source": turnover_source,
+            },
         )
 
     except (IndexError, ValueError) as e:
         raise DataSourceError(f"A股字段解析失败: {e}") from e
+
+
+def _derive_a_turnover_rate(
+    fields: List[str], volume: int, raw_turnover: float
+) -> tuple[float, str]:
+    """Derive a reliable A-share turnover rate.
+
+    Tencent field 39 is not consistently a usable turnover rate. Prefer
+    turnover computed from volume / float shares when field 72 is available.
+    """
+    idx = _FIELD_IDX_A
+    float_shares = 0.0
+    if len(fields) > idx["float_shares"]:
+        float_shares = float(fields[idx["float_shares"]] or 0)
+
+    if volume > 0 and float_shares > 0:
+        derived = volume / float_shares * 100
+        if 0 < derived <= 100:
+            return round(derived, 2), "derived_float_shares"
+
+    if 0 < raw_turnover <= 100:
+        return raw_turnover, "provider_field"
+
+    return raw_turnover, "provider_field_untrusted"
 
 
 def _parse_hk_line(

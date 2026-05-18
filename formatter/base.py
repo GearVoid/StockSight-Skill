@@ -8,6 +8,8 @@ from collections import Counter
 from html import escape
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
+from core.types import NewsItem, StockData
+
 
 # =============================================================================
 # 市场与货币符号映射（VISUAL_SPECS Section 2 补充 - 跨市场）
@@ -375,4 +377,63 @@ def render_table(
     for row in rows:
         lines.append("| " + " | ".join(row) + " |")
 
+    return "\n".join(lines)
+
+
+# =============================================================================
+# Markdown 报告公共渲染函数
+# =============================================================================
+
+def render_highest_risk_badge(signals: Sequence[object]) -> str:
+    """整份报告最高风险标签。"""
+    max_level = max((getattr(sig, "level", 0) for sig in signals), default=0)
+    if max_level == 0:
+        return f"{EmojiMap.OP_BUY} {render_badge('平稳')}"
+    return f"{fmt_signal_level(max_level)} {render_signal_bar(max_level)}"
+
+
+def render_data_quality_section(stocks: Sequence[StockData]) -> str:
+    """渲染数据完整性提示区块。"""
+    notes = metric_quality_notes(stocks)
+    if not notes:
+        return ""
+    lines = [f"## {EmojiMap.TIP} 数据完整性", ""]
+    lines.extend(f"- {note}" for note in notes)
+    return "\n".join(lines)
+
+
+def render_news_details_standard(news: Sequence[NewsItem]) -> str:
+    """渲染标准模式可折叠新闻区块。"""
+    if not news:
+        return ""
+    news_headers = ["来源", "标题", "时间"]
+    news_rows = [[n.source or "—", n.title or "—", n.published_at or "—"] for n in news[:5]]
+    return "\n".join([
+        "<details>",
+        f"<summary>{EmojiMap.NEWS} 相关资讯</summary>",
+        "",
+        render_table(news_headers, news_rows),
+        "",
+        "</details>",
+    ])
+
+
+def render_news_details_detailed(news: Sequence[NewsItem]) -> str:
+    """渲染详细模式可折叠新闻区块。"""
+    if not news:
+        return ""
+    lines = [
+        "<details>",
+        f"<summary>{EmojiMap.NEWS} 相关资讯</summary>",
+        "",
+    ]
+    for item in news[:5]:
+        title = item.title or "—"
+        source = item.source or "—"
+        time = f"（{item.published_at}）" if item.published_at else ""
+        lines.append(f"[{source}] {title}{time}")
+        if item.snippet:
+            lines.append(f"  {EmojiMap.NOTE} {item.snippet}")
+        lines.append("")
+    lines.append("</details>")
     return "\n".join(lines)

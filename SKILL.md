@@ -27,6 +27,15 @@ If dependency installation is unavailable, still use this skill for report forma
 6. When the user wants a browser-ready report, render HTML with `render_html_report(data, mode="standard"|"detailed")`.
 7. Run `validate_report(report_text, data)` for Markdown output and fix formatting issues before presenting the report.
 
+For a one-command path, use `scripts/report.py`:
+
+```bash
+python scripts/report.py 002346 --mode detailed --html --out reports/002346.html
+```
+
+The script prints Markdown by default, writes HTML when `--html` is set, and skips news unless `--news` is set and a news API key is configured.
+It normalizes suspicious quote metrics before detection and uses announcement/earnings/anomaly news queries when news is enabled.
+
 ## Provider Guidance
 
 - Use `TencentDataSource` for A-share and Hong Kong quote data when available.
