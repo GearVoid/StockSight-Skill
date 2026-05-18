@@ -1,59 +1,96 @@
-# StockSight Skill
+# StockSight-Skill
 
-StockSight 是一个给 Codex / agent 使用的股票异动分析 skill，用于获取 A 股、港股、美股行情，检测量比、换手率、收益偏离等技术异动，并生成 Markdown 或 HTML 风格的风险报告。
+**Agent-ready stock anomaly reports with market data, risk signals, and terminal-style visuals.**
+
+一个给 Codex / agent 用的股票异动分析 skill。
+
+把一串股票代码丢进来，它会抓行情、清洗坏数据、识别异动信号，再吐出一份能直接回复用户的 Markdown 报告，或者一页更像金融终端的 HTML / PDF 报告。
+
+它不是“又一个行情脚本”。它更像一个会写盘后快报的分析员：先看数据，再找异常，最后把风险讲清楚。
 
 ![TSLA report overview](docs/images/tsla-report-overview.png)
 
 ![TSLA risk dashboard and radar](docs/images/tsla-report-risk-gauge.png)
 
+![TSLA report data quality and tables](docs/images/tsla-report-radar.png)
 
-## 功能
+## 亮点
 
-- 通过腾讯财经、新浪财经、东方财富等 provider 标准化行情数据
-- 自动清洗明显异常的行情字段，避免坏字段触发误导性信号
-- 检测量比偏离、换手率偏高、超额收益异动等信号
-- 生成多股票标准报告、单股票详细报告和浏览器可打开的 HTML 报告
-- 可选接入 Tavily 或 SerpAPI 聚合公告、财报和异动资讯
-- 输出高级 Markdown/HTML：badge、强度条、风险分布、信号构成和折叠资讯
-- 使用 `validate_report` 校验 Markdown 报告结构和视觉规范
+- Agent-ready：标准 `SKILL.md` 入口，Codex / agent 可以发现、触发和使用。
+- 跨市场行情：支持 A 股、港股、美股，内置腾讯财经、Yahoo Finance、新浪财经、东方财富等 provider。
+- 异动识别：检测量比偏离、换手率异常、收益偏离等技术信号。
+- 坏数据防误导：自动清洗明显异常字段，例如不可用换手率会显示为 `—`，不参与风险判断。
+- 双形态输出：Markdown 适合 agent 直接回复，HTML/PDF 适合正式报告和分享。
+- 高级报告视觉：风险仪表盘、信号雷达、风险分布、信号构成、数据完整性面板。
+- 可选资讯聚合：配置 Tavily 或 SerpAPI 后可补充公告、财报、异动新闻。
+- 最小测试套件：覆盖 formatter、market helper、Yahoo provider、PDF export 等核心路径。
 
-## 使用方式
+## 快速开始
 
-1. 将本目录作为 `stocksight` skill 放入 Codex skills 目录。
-2. 安装运行依赖：
+安装依赖：
 
 ```bash
 pip install -r requirements.txt
 ```
 
-3. 如需新闻资讯，在 `.sightconfig.json` 或环境变量中配置 API key。
-4. 让 agent 使用 `stocksight` skill 生成股票异动分析、跨市场行情报告或 HTML 可视化报告。
-
-一键生成报告：
+生成一份 HTML 报告：
 
 ```bash
 python scripts/report.py 002346 --mode detailed --html --out reports/002346.html
 ```
 
-Markdown 报告使用：
-
-- `render_standard_report(data)`：多股票/盘面快报
-- `render_detailed_report(data)`：单股票深度分析
-
-HTML 报告使用：
-
-- `render_html_report(data, mode="standard")`
-- `render_html_report(data, mode="detailed")`
-
-HTML 输出是完整自包含页面，内置 CSS 柱状图和饼图，不依赖 JavaScript、图片或外部样式。
-
-带新闻聚合：
+生成美股报告：
 
 ```bash
-python scripts/report.py 002346 --mode detailed --news --html --out reports/002346.html
+python scripts/report.py TSLA --provider yahoo --mode detailed --html --out reports/TSLA.html
 ```
 
+生成稳定 PDF：
+
+```bash
+python scripts/report.py 002346 --mode detailed --pdf --pdf-out reports/002346.pdf
+```
+
+PDF 支持三种引擎：
+
+- `--pdf-engine auto`：默认，优先用本机 Edge/Chrome 渲染 HTML，失败后自动生成 text PDF。
+- `--pdf-engine browser`：强制保留 HTML 视觉效果，适合本机浏览器环境稳定时使用。
+- `--pdf-engine text`：最稳的文本 PDF，适合受限环境。
+
+## Agent 工作流
+
+1. 获取行情：使用 `TencentDataSource`、`YahooFinanceDataSource`、`SinaDataSource` 或 `EastMoneyDataSource`。
+2. 清洗行情：调用 `normalize_quote_data(stocks)`，避免坏字段触发误导性信号。
+3. 检测异动：调用 `detect(stocks)` 或 `detect_anomalies(stocks)`。
+4. 可选资讯：配置新闻 API key 后调用 `search_configured_news(stocks)`。
+5. 渲染报告：Markdown 用 `render_standard_report` / `render_detailed_report`，HTML 用 `render_html_report`。
+6. 校验输出：Markdown 用 `validate_report(report_text, data)`。
+
+## Python API
+
+```python
+from core import ReportData, detect, normalize_quote_data
+from formatter import (
+    render_standard_report,
+    render_detailed_report,
+    render_html_report,
+    validate_report,
+)
+from providers import TencentDataSource, YahooFinanceDataSource
+```
+
+稳定接口：
+
+- `DataSourceFactory.fetch`
+- `detect` / `detect_anomalies`
+- `render_standard_report(data)`
+- `render_detailed_report(data)`
+- `render_html_report(data, mode="detailed")`
+- `validate_report(report_text, data)`
+
 ## 配置
+
+新闻是可选能力。没有 API key 时，StockSight-Skill 会跳过资讯区块，但仍然生成核心行情和风险报告。
 
 参考 `config.example.json` 创建 `.sightconfig.json`：
 
@@ -71,36 +108,59 @@ python scripts/report.py 002346 --mode detailed --news --html --out reports/0023
 }
 ```
 
-新闻是可选能力。没有 API key 时，StockSight 会跳过资讯区块，但仍然生成核心行情和风险报告。
+也可以使用环境变量：
+
+- `TAVILY_API_KEY`
+- `SERPAPI_API_KEY`
+
+## 测试
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+当前最小测试套件覆盖：
+
+- Markdown / HTML formatter
+- 报告 validator
+- 数据质量清洗
+- detector 对不可用字段的处理
+- 市场识别 helper
+- Yahoo Finance 美股 provider
+- PDF export helper
 
 ## 目录结构
 
 ```text
-StockSight/
+StockSight-Skill/
 ├── SKILL.md
 ├── core/
 ├── formatter/
 ├── news/
 ├── providers/
+├── scripts/
+├── tests/
 ├── references/
+├── docs/images/
 ├── config.example.json
 └── requirements.txt
 ```
 
-## 参考文档
+## 注意
 
-- `references/visual-specs.md`：报告视觉和结构规范
-- `references/examples.md`：标准、详细、跨市场和资讯报告示例
-
-## 风险提示
-
-报告中的操作建议、目标价、止损价和风险等级仅基于技术指标和公开资讯整理，不构成投资建议。
+报告中的风险等级、目标价、止损参考和操作建议只基于技术指标与公开信息整理，不构成投资建议。
 
 ---
 
-# StockSight Skill
+# StockSight-Skill
 
-StockSight is a Codex/agent skill for stock anomaly analysis. It fetches A-share, Hong Kong, and US equity quotes, detects unusual volume ratio, turnover, and return signals, and renders Markdown or HTML risk reports.
+**Agent-ready stock anomaly reports with market data, risk signals, and terminal-style visuals.**
+
+An agent-ready stock anomaly analysis skill for Codex.
+
+Give it a ticker, and it fetches quotes, cleans suspicious fields, detects unusual signals, then renders a Markdown reply or a polished HTML/PDF report.
+
+This is not just another quote script. It behaves more like a compact market analyst: data first, signal second, report last.
 
 ![TSLA report overview](docs/images/tsla-report-overview.png)
 
@@ -108,77 +168,84 @@ StockSight is a Codex/agent skill for stock anomaly analysis. It fetches A-share
 
 ![TSLA report data quality and tables](docs/images/tsla-report-radar.png)
 
+## Highlights
 
-## Capabilities
+- Agent-ready `SKILL.md` entrypoint.
+- Cross-market quote support for A-shares, Hong Kong equities, and US tickers.
+- Providers for Tencent, Yahoo Finance, Sina, and EastMoney.
+- Signal detection for volume ratio, turnover, and return anomalies.
+- Data-quality guardrails so suspicious fields do not create misleading risk signals.
+- Markdown for direct agent replies, HTML/PDF for polished reports.
+- Premium report visuals: risk gauge, signal radar, risk distribution, signal composition, and data-quality panels.
+- Optional news aggregation through Tavily or SerpAPI.
+- Minimal test suite for the core rendering and data paths.
 
-- Normalize market data through Tencent, Yahoo Finance, Sina, and EastMoney providers
-- Normalize suspicious quote fields before anomaly detection
-- Detect volume-ratio deviation, high turnover, and excess-return anomaly signals
-- Generate standard multi-stock reports, detailed single-stock reports, and browser-ready HTML reports
-- Optionally aggregate announcements, earnings, and anomaly news through Tavily or SerpAPI
-- Produce premium Markdown/HTML with badges, signal bars, risk distribution, signal composition, and collapsible news
-- Validate Markdown reports with `validate_report`
+## Quick Start
 
-## Usage
-
-1. Copy this folder into your Codex skills directory as `stocksight`.
-2. Install runtime dependencies:
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Configure optional news providers with `.sightconfig.json` or environment variables.
-4. Invoke the `stocksight` skill for stock anomaly analysis, cross-market reports, or HTML visual reports.
-
-Generate a report with one command:
+Generate an HTML report:
 
 ```bash
 python scripts/report.py 002346 --mode detailed --html --out reports/002346.html
 ```
 
-US tickers can use the Yahoo Finance provider explicitly:
+Generate a US equity report:
 
 ```bash
-python scripts/report.py AAPL --provider yahoo --mode detailed --html --out reports/AAPL.html
+python scripts/report.py TSLA --provider yahoo --mode detailed --html --out reports/TSLA.html
 ```
 
-Markdown reports:
-
-- `render_standard_report(data)` for multi-stock or daily reports
-- `render_detailed_report(data)` for single-stock deep dives
-
-HTML reports:
-
-- `render_html_report(data, mode="standard")`
-- `render_html_report(data, mode="detailed")`
-
-HTML output is a complete self-contained page with built-in CSS bar and pie charts. It does not require JavaScript, images, or external stylesheets.
-
-Stable PDF export uses local headless Edge/Chrome, so it avoids the layout drift of manual browser printing:
+Export a stable PDF:
 
 ```bash
 python scripts/report.py 002346 --mode detailed --pdf --pdf-out reports/002346.pdf
 ```
 
-Use `--pdf-engine browser` to require the HTML-preserving browser renderer, or
-`--pdf-engine text` for a robust text PDF fallback in restricted environments.
+PDF engines:
 
-Generate with news aggregation:
+- `--pdf-engine auto`: default; tries local Edge/Chrome HTML printing, then falls back to text PDF.
+- `--pdf-engine browser`: preserves HTML visuals when the local browser environment is stable.
+- `--pdf-engine text`: robust text-first PDF for restricted environments.
 
-```bash
-python scripts/report.py 002346 --mode detailed --news --html --out reports/002346.html
+## Agent Pipeline
+
+1. Fetch quotes with `TencentDataSource`, `YahooFinanceDataSource`, `SinaDataSource`, or `EastMoneyDataSource`.
+2. Normalize quotes with `normalize_quote_data(stocks)`.
+3. Detect anomalies with `detect(stocks)` or `detect_anomalies(stocks)`.
+4. Optionally fetch news with `search_configured_news(stocks)`.
+5. Render Markdown or HTML.
+6. Validate Markdown with `validate_report(report_text, data)`.
+
+## Public API
+
+```python
+from core import ReportData, detect, normalize_quote_data
+from formatter import (
+    render_standard_report,
+    render_detailed_report,
+    render_html_report,
+    validate_report,
+)
+from providers import TencentDataSource, YahooFinanceDataSource
 ```
 
-## Testing
+Stable interfaces:
 
-The minimal test suite uses Python's built-in `unittest` runner and does not require extra test dependencies:
-
-```bash
-python -m unittest discover -s tests -v
-```
+- `DataSourceFactory.fetch`
+- `detect` / `detect_anomalies`
+- `render_standard_report(data)`
+- `render_detailed_report(data)`
+- `render_html_report(data, mode="detailed")`
+- `validate_report(report_text, data)`
 
 ## Configuration
+
+News is optional. Without an API key, StockSight-Skill skips the news section and still renders the core market and risk report.
 
 Use `config.example.json` as the shape for `.sightconfig.json`:
 
@@ -196,27 +263,17 @@ Use `config.example.json` as the shape for `.sightconfig.json`:
 }
 ```
 
-News is optional. If no key is configured, StockSight skips the news section and still renders the core market and risk report.
+Environment variables are also supported:
 
-## Structure
+- `TAVILY_API_KEY`
+- `SERPAPI_API_KEY`
 
-```text
-StockSight/
-├── SKILL.md
-├── core/
-├── formatter/
-├── news/
-├── providers/
-├── references/
-├── config.example.json
-└── requirements.txt
+## Testing
+
+```bash
+python -m unittest discover -s tests -v
 ```
-
-## References
-
-- `references/visual-specs.md` defines the report format contract.
-- `references/examples.md` contains standard, detailed, cross-market, and news-enabled examples.
 
 ## Disclaimer
 
-Reports, operation suggestions, target prices, stop-loss values, and risk levels are technical references only and do not constitute investment advice.
+Risk levels, target prices, stop-loss references, and operation suggestions are technical references only and do not constitute investment advice.
