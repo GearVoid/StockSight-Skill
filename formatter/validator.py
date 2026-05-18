@@ -148,7 +148,7 @@ def _validate_block_order(result: ValidationResult, text: str):
     for i, line in enumerate(lines):
         if line.startswith("##") and ("数据" in line or "列表" in line or "概览" in line):
             data_section_line = i
-        if line.startswith("##") and "风险" in line:
+        if line.startswith("##") and "风险提示" in line:
             risk_section_line = i
 
     if data_section_line >= 0 and risk_section_line >= 0:

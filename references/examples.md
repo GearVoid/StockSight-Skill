@@ -15,6 +15,18 @@ Use these examples as formatting references, not as market recommendations.
 |:---:|:---:|:---:|:---:|
 | 3 只 | 1 只 | 🔶 警告 ▰▰▰▱▱ | 腾讯财经 + 新浪财经 |
 
+## 📊 风险可视化
+
+| <kbd>关注</kbd> | <kbd>警告</kbd> | <kbd>危险</kbd> |
+|:---:|:---:|:---:|
+| 0 ▱▱▱▱▱ | 1 ▰▰▰▰▰ | 0 ▱▱▱▱▱ |
+
+### 信号构成
+
+| 信号类型 | 数量 | 最高等级 | 分布 |
+|:---|---:|:---|:---|
+| <kbd>量比偏离</kbd> | 1 | 🔶 警告 | ▰▰▰▰▰ |
+
 ## 📋 异动股票列表
 
 | 股票 | 现价 | 涨跌幅 | 量比 | 异动信号 |
@@ -50,6 +62,18 @@ Use these examples as formatting references, not as market recommendations.
 | <kbd>当前价</kbd> | <kbd>涨跌幅</kbd> | <kbd>量比</kbd> | <kbd>换手率</kbd> | <kbd>最高风险</kbd> |
 |:---:|:---:|:---:|:---:|:---:|
 | RMB 27.93 | +3.2% 📈 | 2.15 | 5.3% | 🔶 警告 ▰▰▰▱▱ |
+
+## 📊 风险可视化
+
+| <kbd>关注</kbd> | <kbd>警告</kbd> | <kbd>危险</kbd> |
+|:---:|:---:|:---:|
+| 0 ▱▱▱▱▱ | 1 ▰▰▰▰▰ | 0 ▱▱▱▱▱ |
+
+### 信号构成
+
+| 信号类型 | 数量 | 最高等级 | 分布 |
+|:---|---:|:---|:---|
+| <kbd>量比偏离</kbd> | 1 | 🔶 警告 | ▰▰▰▰▰ |
 
 ## 💰 价格概览
 
@@ -114,3 +138,7 @@ Use these examples as formatting references, not as market recommendations.
 
 </details>
 ```
+
+## HTML Report
+
+Use `render_html_report(data, mode="detailed")` for a self-contained browser page. The HTML output includes built-in CSS cards, risk distribution bars, and `conic-gradient` pie charts; it does not require JavaScript or external assets.

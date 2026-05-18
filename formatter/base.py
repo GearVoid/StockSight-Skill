@@ -4,8 +4,9 @@
 对标 VISUAL_SPECS.md Sections 2-5。
 """
 
+from collections import Counter
 from html import escape
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 
 # =============================================================================
@@ -182,6 +183,8 @@ def format_amount(amount: float, market: str = "") -> str:
 
 def format_turnover(value: float) -> str:
     """换手率格式化"""
+    if value <= 0 or value > 100:
+        return "—"
     return f"{value:.1f}%"
 
 
@@ -204,6 +207,12 @@ def fmt_signal_level(level: int) -> str:
     return f"{symbol} {name}"
 
 
+def signal_level_label(level: int) -> str:
+    """风险等级的文字标签。"""
+    names = {1: "关注", 2: "警告", 3: "危险"}
+    return names.get(level, "未知")
+
+
 def render_badge(text: str) -> str:
     """渲染 GitHub Markdown 兼容的短标签"""
     return f"<kbd>{escape(str(text))}</kbd>"
@@ -217,6 +226,93 @@ def render_signal_bar(level: int, width: int = 5) -> str:
     filled_by_level = {0: 0, 1: 2, 2: 3, 3: width}
     filled = filled_by_level.get(level, min(max(level, 0), width))
     return "▰" * filled + "▱" * (width - filled)
+
+
+def render_count_bar(count: int, max_count: int, width: int = 5) -> str:
+    """按数量渲染分布条，适合风险等级/信号构成聚合。"""
+    if count <= 0 or max_count <= 0:
+        filled = 0
+    else:
+        filled = max(1, round(count / max_count * width))
+    return "▰" * filled + "▱" * (width - filled)
+
+
+def risk_level_counts(signals: Iterable[object]) -> Dict[int, int]:
+    """统计关注/警告/危险三个风险等级的信号数量。"""
+    counts = Counter(getattr(sig, "level", 0) for sig in signals)
+    return {level: counts.get(level, 0) for level in (1, 2, 3)}
+
+
+def risk_type_counts(signals: Iterable[object]) -> List[Tuple[str, int, int]]:
+    """按风险类型统计信号数量和该类型最高风险等级。"""
+    grouped: Dict[str, List[int]] = {}
+    for sig in signals:
+        risk_type = str(getattr(sig, "risk_type", "未知信号") or "未知信号")
+        grouped.setdefault(risk_type, []).append(int(getattr(sig, "level", 0) or 0))
+    return sorted(
+        ((risk_type, len(levels), max(levels)) for risk_type, levels in grouped.items()),
+        key=lambda item: (-item[1], -item[2], item[0]),
+    )
+
+
+def render_risk_distribution(signals: Sequence[object]) -> str:
+    """渲染 Markdown 风险等级分布条。"""
+    if not signals:
+        return f"{EmojiMap.OP_BUY} 暂无显著异动信号，风险分布保持平稳。"
+
+    counts = risk_level_counts(signals)
+    max_count = max(counts.values(), default=0)
+    headers = [render_badge(label) for label in ("关注", "警告", "危险")]
+    rows = [[
+        f"{counts[1]} {render_count_bar(counts[1], max_count)}",
+        f"{counts[2]} {render_count_bar(counts[2], max_count)}",
+        f"{counts[3]} {render_count_bar(counts[3], max_count)}",
+    ]]
+    return render_table(headers, rows, col_align=["center", "center", "center"])
+
+
+def render_signal_composition(signals: Sequence[object]) -> str:
+    """渲染 Markdown 信号构成表。"""
+    composition = risk_type_counts(signals)
+    if not composition:
+        return f"{EmojiMap.OP_BUY} 暂无显著异动信号。"
+
+    max_count = max((count for _, count, _ in composition), default=0)
+    rows = [
+        [
+            render_badge(risk_type),
+            str(count),
+            fmt_signal_level(level),
+            render_count_bar(count, max_count),
+        ]
+        for risk_type, count, level in composition
+    ]
+    return render_table(
+        ["信号类型", "数量", "最高等级", "分布"],
+        rows,
+        col_align=["left", "right", "left", "left"],
+    )
+
+
+def metric_quality_notes(stocks: Sequence[object]) -> List[str]:
+    """识别不可用或明显异常的指标，供 Markdown/HTML 报告共同展示。"""
+    notes: List[str] = []
+    volume_ratio_codes = [
+        str(getattr(stock, "code", ""))
+        for stock in stocks
+        if getattr(stock, "volume_ratio", 0) <= 0
+    ]
+    turnover_codes = [
+        str(getattr(stock, "code", ""))
+        for stock in stocks
+        if getattr(stock, "turnover_rate", 0) <= 0 or getattr(stock, "turnover_rate", 0) > 100
+    ]
+
+    if volume_ratio_codes:
+        notes.append(f"量比不可用：{', '.join(volume_ratio_codes)} 已显示为 —。")
+    if turnover_codes:
+        notes.append(f"换手率不可用或超出常规范围：{', '.join(turnover_codes)} 已显示为 —，不纳入风险判断。")
+    return notes
 
 
 def render_metric_strip(metrics: Sequence[Tuple[str, str]]) -> str:

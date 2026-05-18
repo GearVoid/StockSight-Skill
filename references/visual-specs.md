@@ -9,12 +9,14 @@ Every report uses this order:
 1. H1 report title
 2. One-line summary blockquote
 3. Top metric strip: `市场脉冲` for standard reports or `核心看板` for detailed reports
-4. Core data section
-5. Optional detailed analysis section
-6. Risk section
-7. Optional action suggestions
-8. Optional related news in `<details>`
-9. Data source line
+4. Risk visualization: risk distribution and signal composition
+5. Optional data-quality notes
+6. Core data section
+7. Optional detailed analysis section
+8. Risk section
+9. Optional action suggestions
+10. Optional related news in `<details>`
+11. Data source line
 
 ## Premium Markdown Elements
 
@@ -27,6 +29,18 @@ Use only lightweight, portable HTML:
 | `▰▱` bars | Signal/risk intensity | `▰▰▰▱▱` |
 
 Avoid CSS, scripts, external images, and complex HTML tables.
+
+Markdown reports may include Unicode-only visual summaries:
+
+- Risk distribution table: `关注 / 警告 / 危险` counts with `▰▱` bars.
+- Signal composition table: risk type, count, highest level, and distribution bar.
+- Data-quality notes when a metric is unavailable or clearly outside normal bounds.
+
+HTML reports rendered by `render_html_report(data, mode)` may use built-in CSS only:
+
+- CSS bar charts for risk counts and signal composition.
+- CSS `conic-gradient` pie charts for risk-level and signal-type proportions.
+- No JavaScript, external images, web fonts, or external stylesheets.
 
 ## Emoji Semantics
 
@@ -70,6 +84,8 @@ Avoid CSS, scripts, external images, and complex HTML tables.
 | Volume ratio | two decimals, or `—` when unavailable |
 | Turnover rate | one decimal percent |
 | Amount | integer in ten-thousand units, with currency prefix when known |
+
+For unavailable or suspicious metrics, render `—` and add a data-quality note. Treat turnover rate values `<= 0` or `> 100` as unavailable unless a provider-specific implementation proves they are reliable.
 
 ## Cross-Market Rules
 
@@ -119,6 +135,7 @@ Detailed reports:
 - News provider error: skip news and keep the core report.
 - Empty news results: skip news.
 - Missing market metric: show `—`.
+- Suspicious market metric: show `—` and add a data-quality note.
 - No usable quote data: return a short unavailable-data message.
 
 ## Disclaimer

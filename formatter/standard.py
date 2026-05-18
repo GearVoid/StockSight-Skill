@@ -22,9 +22,12 @@ from .base import (
     format_price,
     format_volume_ratio,
     market_tag,
+    metric_quality_notes,
     render_badge,
     render_metric_strip,
+    render_risk_distribution,
     render_signal_bar,
+    render_signal_composition,
     risk_level_symbol,
     render_table,
 )
@@ -71,12 +74,22 @@ def _build_stock_table(stocks: List[StockData], signals: List[RiskSignal]) -> st
         emoji = change_emoji(s.change_percent)
         rows.append([
             _stock_label(s),
-            format_price(s.current_price),
+            format_price(s.current_price, s.market),
             f"{change_str} {emoji}",
             format_volume_ratio(s.volume_ratio),
             _anomaly_flag(s, signals),
         ])
     return render_table(headers, rows, col_align=["left", "right", "right", "right", "left"])
+
+
+def _render_data_quality(stocks: List[StockData]) -> str:
+    """渲染数据完整性提示。"""
+    notes = metric_quality_notes(stocks)
+    if not notes:
+        return ""
+    lines = [f"## {EmojiMap.TIP} 数据完整性", ""]
+    lines.extend(f"- {note}" for note in notes)
+    return "\n".join(lines)
 
 
 def _build_risk_table(signals: List[RiskSignal]) -> str:
@@ -180,7 +193,23 @@ def render_standard_report(data: ReportData) -> str:
     parts.append(_render_market_pulse(data))
     parts.append("")
 
-    # 4. 异动股票列表
+    # 4. 风险可视化
+    parts.append(f"## {EmojiMap.AMOUNT} 风险可视化")
+    parts.append("")
+    parts.append(render_risk_distribution(data.signals))
+    parts.append("")
+    parts.append("### 信号构成")
+    parts.append("")
+    parts.append(render_signal_composition(data.signals))
+    parts.append("")
+
+    # 5. 数据完整性
+    data_quality = _render_data_quality(data.stocks)
+    if data_quality:
+        parts.append(data_quality)
+        parts.append("")
+
+    # 6. 异动股票列表
     parts.append(f"## {EmojiMap.LIST} 异动股票列表")
     parts.append("")
 
@@ -206,7 +235,7 @@ def render_standard_report(data: ReportData) -> str:
     parts.append(render_table(headers, rows, col_align=["left", "right", "right", "right", "left"]))
     parts.append("")
 
-    # 5. 风险提示
+    # 7. 风险提示
     if data.signals:
         parts.append(f"## {EmojiMap.RISK} 风险提示")
         parts.append("")
@@ -220,19 +249,19 @@ def render_standard_report(data: ReportData) -> str:
         parts.append("✅ 未发现显著异动，当前市场状态平稳。")
         parts.append("")
 
-    # 6. 操作建议
+    # 8. 操作建议
     if data.signals:
         parts.append(f"## {EmojiMap.CONCLUSION} 操作建议")
         parts.append("")
         parts.append(_build_suggestions(data.stocks, data.signals))
         parts.append("")
 
-    # 7. 相关资讯（可选）
+    # 9. 相关资讯（可选）
     if data.news:
         parts.append(_render_news_details(data))
         parts.append("")
 
-    # 8. 数据来源标注
+    # 10. 数据来源标注
     parts.append(f"{EmojiMap.DATA_SOURCE} 数据来源：{data.data_source} | {EmojiMap.CLOCK} {data.timestamp}")
 
     return "\n".join(parts)
