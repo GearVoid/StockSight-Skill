@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """Chart-like HTML sections for StockSight reports."""
 
 from typing import Dict, List, Sequence, Tuple

@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """News provider 实现"""
 
 from .tavily import TavilyNewsProvider

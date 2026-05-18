@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """Tavily 新闻搜索实现
 
 使用 Tavily Search API 搜索股票相关新闻。

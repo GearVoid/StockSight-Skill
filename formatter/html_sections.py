@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """Compatibility exports for StockSight HTML report sections."""
 
 from .html_utils import (

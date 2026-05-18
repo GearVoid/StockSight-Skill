@@ -1,0 +1,346 @@
+﻿# -*- coding: utf-8 -*-
+import unittest
+
+from providers.tencent import (
+    _parse_a_line,
+    _parse_hk_line,
+    _derive_a_turnover_rate,
+    TencentDataSource,
+)
+from core import DataSourceError
+
+
+# ---------------------------------------------------------------------------
+# Build valid Tencent response lines programmatically (guarantees field count)
+# ---------------------------------------------------------------------------
+
+def _build_a_line(code, name, curr, prev, open_p, vol, chg_pct, high, low,
+                  amount, vr, tr, float_sh=50000, total_sh=100000):
+    """Build a Tencent A-share response line with correct field positions."""
+    parts = ["1", name, code, str(curr), str(prev), str(open_p), str(vol)]
+    # Fields 7-31: zero placeholders (25 fields)
+    parts.extend(["0"] * 25)
+    # Field 32: change_percent
+    parts.append(str(chg_pct))
+    # Field 33-34: high, low
+    parts.extend([str(high), str(low)])
+    # Fields 35-36: zero
+    parts.extend(["0", "0"])
+    # Field 37: amount
+    parts.append(str(amount))
+    # Field 38-39: volume_ratio, turnover_rate
+    parts.extend([str(vr), str(tr)])
+    # Fields 40-71: zeros (32 fields)
+    parts.extend(["0"] * 32)
+    # Field 72-73: float_shares, total_shares
+    parts.extend([str(float_sh), str(total_sh)])
+    return f'v_sh{code}="' + "~".join(parts) + '~";'
+
+
+def _build_hk_line(code, name, curr, prev, open_p, vol, chg_pct, high, low, amount):
+    """Build a Tencent HK response line with correct field positions."""
+    parts = ["1", name, code, str(curr), str(prev), str(open_p), str(vol)]
+    # Fields 7-31: zero placeholders (25 fields)
+    parts.extend(["0"] * 25)
+    # Field 32: change_percent
+    parts.append(str(chg_pct))
+    # Field 33-34: high, low
+    parts.extend([str(high), str(low)])
+    # Fields 35-36: zero
+    parts.extend(["0", "0"])
+    # Field 37: amount
+    parts.append(str(amount))
+    # Remaining fields: zeros
+    parts.extend(["0"] * 37)
+    return f'v_hk{code}="' + "~".join(parts) + '~";'
+
+
+A_LINE_VALID = _build_a_line(
+    code="600570", name="恒生电子", curr=35.50, prev=34.80, open_p=35.00,
+    vol=123456, chg_pct=2.01, high=35.80, low=33.90,
+    amount=1000000, vr=1.80, tr=3.20,
+)
+
+HK_LINE_VALID = _build_hk_line(
+    code="00700", name="腾讯控股", curr=380.00, prev=375.00, open_p=378.00,
+    vol=12345678, chg_pct=1.33, high=382.00, low=374.00,
+    amount=500000000,
+)
+
+
+class TencentParserTests(unittest.TestCase):
+    """Test Tencent response line parsing without network access."""
+
+    def test_parse_a_line_returns_valid_stock_data(self):
+        stock = _parse_a_line(A_LINE_VALID, "600570")
+
+        self.assertEqual(stock.code, "600570")
+        self.assertEqual(stock.name, "恒生电子")
+        self.assertAlmostEqual(stock.current_price, 35.50)
+        self.assertAlmostEqual(stock.prev_close, 34.80)
+        self.assertAlmostEqual(stock.change_percent, 2.01)
+        self.assertEqual(stock.market, "sh")
+        self.assertEqual(stock.volume, 12345600)  # 手→股
+
+    def test_parse_a_line_raises_on_short_line(self):
+        with self.assertRaises(DataSourceError):
+            _parse_a_line("short", "600001")
+
+    def test_parse_a_line_raises_on_missing_separator(self):
+        with self.assertRaises(DataSourceError):
+            _parse_a_line("v_sh600001=short", "600001")
+
+    def test_parse_hk_line_returns_valid_stock_data(self):
+        stock = _parse_hk_line(HK_LINE_VALID, "00700")
+
+        self.assertEqual(stock.code, "00700")
+        self.assertAlmostEqual(stock.current_price, 380.00)
+        self.assertAlmostEqual(stock.prev_close, 375.00)
+        self.assertAlmostEqual(stock.change_percent, 1.33)
+        self.assertEqual(stock.market, "hk")
+        self.assertEqual(stock.volume, 12345678)
+        self.assertEqual(stock.volume_ratio, 0.0)
+        self.assertEqual(stock.turnover_rate, 0.0)
+
+    def test_parse_hk_line_raises_on_short_line(self):
+        with self.assertRaises(DataSourceError):
+            _parse_hk_line("short", "00700")
+
+    def test_derive_turnover_rate_from_float_shares(self):
+        fields = [""] * 80
+        fields[72] = "100000"
+        volume = 50000
+        rate, source = _derive_a_turnover_rate(fields, volume, raw_turnover=0.0)
+
+        self.assertAlmostEqual(rate, 50.0)
+        self.assertEqual(source, "derived_float_shares")
+
+    def test_derive_turnover_rate_falls_back_to_provider_field(self):
+        fields = [""] * 80
+        volume = 0
+        rate, source = _derive_a_turnover_rate(fields, volume, raw_turnover=3.5)
+
+        self.assertAlmostEqual(rate, 3.5)
+        self.assertEqual(source, "provider_field")
+
+    def test_derive_turnover_rate_returns_untrusted_when_overflow(self):
+        fields = [""] * 80
+        volume = 500000
+        rate, source = _derive_a_turnover_rate(fields, volume, raw_turnover=500.0)
+
+        self.assertAlmostEqual(rate, 500.0)
+        self.assertEqual(source, "provider_field_untrusted")
+
+
+class TencentDataSourceTests(unittest.TestCase):
+    """Test TencentDataSource with mocked HTTP session."""
+
+    def _make_response(self, resp_text):
+        class _FakeResp:
+            status_code = 200
+            encoding = "gbk"
+            def __init__(self):
+                self.text = resp_text
+        return _FakeResp()
+
+    def test_fetch_parses_multiple_stocks(self):
+        class FakeSession:
+            def get(self, url, timeout):
+                return self._response
+        session = FakeSession()
+        session._response = self._make_response(
+            A_LINE_VALID + "\n" + HK_LINE_VALID
+        )
+
+        ds = TencentDataSource()
+        ds._session = session
+
+        data, failed = ds.fetch(["600570", "00700"])
+
+        self.assertIn("600570", data)
+        self.assertIn("00700", data)
+        self.assertEqual(len(failed), 0)
+        self.assertAlmostEqual(data["600570"].current_price, 35.50)
+        self.assertAlmostEqual(data["00700"].current_price, 380.00)
+
+    def test_fetch_reports_failed_codes_not_in_response(self):
+        class FakeSession:
+            def get(self, url, timeout):
+                return self._response
+        session = FakeSession()
+        session._response = self._make_response(A_LINE_VALID)
+
+        ds = TencentDataSource()
+        ds._session = session
+
+        data, failed = ds.fetch(["600570", "000001"])
+
+        self.assertIn("600570", data)
+        self.assertIn("000001", failed)
+
+    def test_fetch_empty_codes_returns_empty(self):
+        ds = TencentDataSource()
+        data, failed = ds.fetch([])
+        self.assertEqual(data, {})
+        self.assertEqual(failed, [])
+
+    def test_provider_name_is_chinese(self):
+        self.assertEqual(TencentDataSource().name(), "腾讯财经")
+
+
+# ---------------------------------------------------------------------------
+# Sina provider tests
+# ---------------------------------------------------------------------------
+
+SINA_A_RESPONSE = 'var hq_str_sh600570="恒生电子,35.00,34.80,35.50,35.80,33.90,35.50,35.51,123456,12345678,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0";'
+SINA_HK_RESPONSE = 'var hq_str_hk00700="TENCENT,腾讯控股,378.00,375.00,382.00,374.00,380.00,5.00,1.33,0,0,500000000,12345678,2025/01/01,0,0";'
+SINA_US_RESPONSE = 'var hq_str_gb_aapl="Apple Inc.,212.45,1.17,0,212.00,213.00,209.50,210.00,0,0,12345678,0,1234567890,0,0,0,0,0,0,0,0";'
+
+from providers.sina import (
+    _parse_sina_response_line,
+    _parse_a_fields,
+    _parse_hk_fields,
+    _parse_us_fields,
+    SinaDataSource,
+)
+
+
+class SinaParserTests(unittest.TestCase):
+    def test_parse_sina_response_line_extracts_fields(self):
+        fields = _parse_sina_response_line(SINA_A_RESPONSE)
+        self.assertIsNotNone(fields)
+        self.assertEqual(fields[0], "恒生电子")
+
+    def test_parse_sina_response_line_returns_none_on_bad_line(self):
+        self.assertIsNone(_parse_sina_response_line("no quotes here"))
+
+    def test_parse_a_fields_returns_valid_stock_data(self):
+        fields = _parse_sina_response_line(SINA_A_RESPONSE)
+        stock = _parse_a_fields(fields, "600570", "2026-01-01 15:00:00")
+
+        self.assertEqual(stock.code, "600570")
+        self.assertEqual(stock.name, "恒生电子")
+        self.assertAlmostEqual(stock.current_price, 35.50)
+        self.assertAlmostEqual(stock.prev_close, 34.80)
+        self.assertEqual(stock.market, "sh")
+        self.assertEqual(stock.volume_ratio, 0.0)
+        self.assertEqual(stock.turnover_rate, 0.0)
+
+    def test_parse_hk_fields_returns_valid_stock_data(self):
+        fields = _parse_sina_response_line(SINA_HK_RESPONSE)
+        stock = _parse_hk_fields(fields, "00700", "2026-01-01 16:00:00")
+
+        self.assertEqual(stock.code, "00700")
+        self.assertEqual(stock.name, "腾讯控股")
+        self.assertAlmostEqual(stock.current_price, 380.00)
+        self.assertAlmostEqual(stock.change_percent, 1.33)
+        self.assertEqual(stock.market, "hk")
+
+    def test_parse_us_fields_returns_valid_stock_data(self):
+        fields = _parse_sina_response_line(SINA_US_RESPONSE)
+        stock = _parse_us_fields(fields, "AAPL", "2026-01-01 16:00:00")
+
+        self.assertEqual(stock.code, "AAPL")
+        self.assertEqual(stock.name, "Apple Inc.")
+        self.assertAlmostEqual(stock.current_price, 212.45)
+        self.assertEqual(stock.market, "us")
+
+    def test_parse_a_fields_handles_empty_fields_gracefully(self):
+        fields = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]
+        stock = _parse_a_fields(fields, "600001", "2026-01-01")
+        self.assertEqual(stock.code, "600001")
+        self.assertAlmostEqual(stock.current_price, 0.0)
+
+
+# ---------------------------------------------------------------------------
+# EastMoney provider tests
+# ---------------------------------------------------------------------------
+
+from providers.eastmoney import EastMoneyDataSource
+from core.market import to_eastmoney_secid
+
+
+EASTMONEY_STOCK_RESPONSE = {
+    "rc": 0,
+    "data": {
+        "f43": 3550,
+        "f44": 3580,
+        "f45": 3390,
+        "f46": 3500,
+        "f47": 123456,
+        "f48": 12345678,
+        "f50": 180,
+        "f57": "600570",
+        "f58": "恒生电子",
+        "f60": 3480,
+        "f127": "软件开发",
+        "f129": "人工智能,区块链,金融科技",
+        "f167": 320,
+        "f168": 201,
+    },
+}
+
+
+class EastMoneyParserTests(unittest.TestCase):
+    def test_to_secid_shanghai(self):
+        self.assertEqual(to_eastmoney_secid("600570"), "1.600570")
+
+    def test_to_secid_shenzhen(self):
+        self.assertEqual(to_eastmoney_secid("000001"), "0.000001")
+        self.assertEqual(to_eastmoney_secid("002346"), "0.002346")
+
+    def test_to_secid_returns_none_for_hk(self):
+        self.assertIsNone(to_eastmoney_secid("00700"))
+
+    def test_to_secid_returns_none_for_us(self):
+        self.assertIsNone(to_eastmoney_secid("AAPL"))
+
+    def test_fetch_single_parses_stock_data(self):
+        class FakeSession:
+            def get(self, url, params, headers, timeout):
+                class FakeResp:
+                    encoding = "utf-8"
+                    @staticmethod
+                    def json():
+                        return EASTMONEY_STOCK_RESPONSE
+                return FakeResp()
+
+        ds = EastMoneyDataSource()
+        ds._session = FakeSession()
+
+        stock = ds._fetch_single("600570", "1.600570", "2026-01-01 15:00:00")
+
+        self.assertEqual(stock.code, "600570")
+        self.assertEqual(stock.name, "恒生电子")
+        self.assertAlmostEqual(stock.current_price, 35.50)
+        self.assertAlmostEqual(stock.change_percent, 2.01)
+        self.assertAlmostEqual(stock.volume_ratio, 1.80)
+        self.assertAlmostEqual(stock.turnover_rate, 3.20)
+        self.assertEqual(stock.market, "sh")
+        self.assertEqual(stock.volume, 12345600)
+
+    def test_fetch_single_returns_none_on_error(self):
+        class FakeSession:
+            def get(self, url, params, headers, timeout):
+                raise Exception("network error")
+
+        ds = EastMoneyDataSource()
+        ds._session = FakeSession()
+
+        stock = ds._fetch_single("600570", "1.600570", "2026-01-01")
+        self.assertIsNone(stock)
+
+    def test_fetch_skips_non_a_share_codes(self):
+        ds = EastMoneyDataSource()
+        data, failed = ds.fetch(["AAPL", "00700"])
+
+        self.assertEqual(data, {})
+        self.assertIn("AAPL", failed)
+        self.assertIn("00700", failed)
+
+    def test_provider_name_is_chinese(self):
+        self.assertEqual(EastMoneyDataSource().name(), "东方财富")
+
+
+if __name__ == "__main__":
+    unittest.main()

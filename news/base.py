@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """NewsProvider 抽象层
 
 为 StockSight 提供股票相关新闻搜索能力。

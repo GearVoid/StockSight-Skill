@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """SerpAPI 新闻搜索实现
 
 使用 SerpAPI (Google News) 搜索股票相关新闻。

@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """核心数据类型定义"""
 
 from dataclasses import dataclass, field

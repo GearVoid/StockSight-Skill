@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 from .types import NewsItem, StockData, RiskSignal, ReportData
 from .data_source import DataSource, DataSourceFactory, DataSourceError, FetchResult
 from .detector import detect, detect_anomalies, DetectorThresholds

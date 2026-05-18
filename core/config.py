@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """配置读取工具
 
 读取 `.sightconfig.json` 配置文件。

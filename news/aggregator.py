@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """News and announcement aggregation helpers."""
 
 from __future__ import annotations

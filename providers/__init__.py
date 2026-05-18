@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """数据源 providers 包"""
 
 from .eastmoney import EastMoneyDataSource

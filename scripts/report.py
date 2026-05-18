@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """One-click StockSight report generator."""
 
 from __future__ import annotations

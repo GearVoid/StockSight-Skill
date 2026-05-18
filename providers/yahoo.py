@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """Yahoo Finance quote provider for US equities.
 
 Uses the public chart JSON endpoint:

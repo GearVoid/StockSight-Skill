@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """标准模式报告渲染
 
 对标 VISUAL_SPECS.md Section 6.2（标准模式）和 Section 8（完整示例）。

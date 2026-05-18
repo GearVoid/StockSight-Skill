@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """CSS for self-contained StockSight HTML reports."""
 
 def _style() -> str:
