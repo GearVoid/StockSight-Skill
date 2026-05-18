@@ -1,11 +1,11 @@
 ---
 name: stocksight
-description: Agent-ready stock anomaly analyst for A-share, Hong Kong, and US equities. Use when Codex needs to fetch quotes, clean suspicious market fields, detect unusual volume/turnover/return signals, add optional news context, render premium Markdown/HTML/PDF stock reports, or validate StockSight report formatting.
+description: Agent-ready stock anomaly analyst for A-share, Hong Kong, and US equities. Use when Codex needs to fetch quotes, clean suspicious market fields, detect unusual volume/turnover/return signals, add optional news context, render premium Markdown/HTML stock reports, replay deterministic snapshots, or validate StockSight report formatting.
 ---
 
 # StockSight
 
-Use this skill to produce StockSight stock anomaly reports from market data. Keep the workflow data-first: fetch quotes, detect signals, optionally add news, render premium Markdown or self-contained HTML, then validate Markdown before returning it.
+Use this skill to produce StockSight stock anomaly reports from market data. Keep the workflow data-first: fetch quotes, clean fields, detect signals, optionally add news, render Markdown or self-contained HTML, then validate Markdown before returning it.
 
 ## Environment
 
@@ -19,24 +19,31 @@ If dependency installation is unavailable, still use this skill for report forma
 
 ## Workflow
 
-1. Build one or more `StockData` records from the available provider data.
-2. Run `detect(stocks)` or `detect_anomalies(stocks)` to produce `RiskSignal` entries.
-3. Optionally search news only when an API key is configured. If news lookup fails or returns no results, skip the news section and continue.
-4. Create `ReportData` with title, summary, stocks, signals, data source, timestamp, and optional `news`.
-5. Render Markdown with `render_standard_report(data)` for multi-stock or daily reports, or `render_detailed_report(data)` for single-stock deep dives.
-6. When the user wants a browser-ready report, render HTML with `render_html_report(data, mode="standard"|"detailed")`.
-7. Run `validate_report(report_text, data)` for Markdown output and fix formatting issues before presenting the report.
+1. Build one or more `StockData` records from provider data.
+2. Run `normalize_quote_data(stocks)` before detection.
+3. Run `detect(stocks)` or `detect_anomalies(stocks)` to produce `RiskSignal` entries.
+4. Optionally search news only when an API key is configured. If news lookup fails or returns no results, skip the news section and continue.
+5. Create `ReportData` with title, summary, stocks, signals, data source, timestamp, and optional `news`.
+6. Render Markdown with `render_standard_report(data)` for multi-stock reports, or `render_detailed_report(data)` for single-stock deep dives.
+7. Render browser-ready HTML with `render_html_report(data, mode="standard"|"detailed")` when the user wants a polished report page.
+8. Run `validate_report(report_text, data)` for Markdown output and fix formatting issues before presenting the report.
 
-For a one-command path, use `scripts/report.py`:
+For a one-command live report:
 
 ```bash
 python scripts/report.py 002346 --mode detailed --html --out reports/002346.html
 ```
 
-The script prints Markdown by default, writes HTML when `--html` is set, exports stable PDF through local headless Edge/Chrome when `--pdf` is set, and can fall back to a text PDF in restricted browser environments.
-Use `--pdf-engine browser` when the user needs the HTML-preserving renderer, or `--pdf-engine text` when reliability is more important than full visual fidelity.
-It skips news unless `--news` is set and a news API key is configured.
-It normalizes suspicious quote metrics before detection and uses announcement/earnings/anomaly news queries when news is enabled.
+For reproducible cross-agent output, save a snapshot once and render from it later:
+
+```bash
+python scripts/report.py 002346 --provider tencent --mode detailed --save-snapshot snapshots/002346.json --html --out reports/002346.html
+python scripts/report.py --from-snapshot snapshots/002346.json --html --out reports/002346-replay.html --markdown-out outputs/002346-replay.md
+```
+
+When rendering from `--from-snapshot`, do not fetch live quotes, re-run news search, or re-detect signals. The snapshot is the source of truth.
+
+If the user needs PDF, generate HTML first and let the user export it from their own browser or system PDF tools.
 
 ## Provider Guidance
 
@@ -44,7 +51,7 @@ It normalizes suspicious quote metrics before detection and uses announcement/ea
 - Use `YahooFinanceDataSource` for US tickers when no paid market-data key is available.
 - Use `SinaDataSource` as a fallback quote provider when Yahoo or Tencent cannot return data.
 - Use `EastMoneyDataSource` for A-share quotes and optional sector benchmark support.
-- Prefer `DataSourceFactory` or `scripts/report.py --provider auto` when chaining multiple providers.
+- Prefer `DataSourceFactory` or `scripts/report.py --provider auto` when chaining providers.
 
 ## Configuration
 
@@ -57,7 +64,7 @@ News providers are optional. Supported API key sources:
 
 ## Output Rules
 
-- Follow the visual and report structure in `references/visual-specs.md` when exact formatting matters.
+- Follow `references/visual-specs.md` when exact formatting matters.
 - Use `references/examples.md` for full standard, detailed, cross-market, and news-enabled examples.
 - Use lightweight GitHub-compatible HTML (`<kbd>` and `<details>`) plus Unicode signal bars for Markdown polish.
 - Use `render_html_report` for a full browser-ready page with built-in CSS charts; do not hand-write one-off HTML reports as the core output path.
@@ -78,15 +85,17 @@ News providers are optional. Supported API key sources:
 
 ```text
 stocksight/
-├── SKILL.md
-├── core/          # types, config, data-source abstraction, detection
-├── formatter/     # standard/detailed report rendering and validation
-├── news/          # optional news provider abstraction and implementations
-├── providers/     # quote providers
-└── references/    # visual contract and examples
+|-- SKILL.md
+|-- core/          # types, config, data-source abstraction, detection
+|-- formatter/     # standard/detailed/html rendering and validation
+|-- news/          # optional news provider abstraction and implementations
+|-- providers/     # quote providers
+|-- scripts/       # one-command report generation
+`-- references/    # visual contract and examples
 ```
 
 ## Development Notes
 
 - Keep public API names stable: `DataSourceFactory.fetch`, `detect`, `detect_anomalies`, `render_standard_report`, `render_detailed_report`, `render_html_report`, and `validate_report`.
+- Keep snapshot compatibility stable for `schema_version: 1` unless a migration path is added.
 - Install runtime dependencies from `requirements.txt` before importing network providers.
