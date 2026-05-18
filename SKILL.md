@@ -1,0 +1,40 @@
+---
+name: stocksight
+description: Generate StockSight Markdown stock anomaly reports for A-share, Hong Kong, and US equities. Use when Codex needs to fetch or analyze market data, detect unusual volume/turnover/return signals, add optional news context, render standard or detailed stock reports, validate output formatting, or follow the StockSight visual/reporting conventions.
+---
+
+# StockSight
+
+Use this skill to produce StockSight stock anomaly reports from market data. Keep the workflow data-first: fetch quotes, detect signals, optionally add news, render Markdown, then validate the report before returning it.
+
+## Workflow
+
+1. Build one or more `StockData` records from the available provider data.
+2. Run `detect(stocks)` or `detect_anomalies(stocks)` to produce `RiskSignal` entries.
+3. Optionally search news only when an API key is configured. If news lookup fails or returns no results, skip the news section and continue.
+4. Create `ReportData` with title, summary, stocks, signals, data source, timestamp, and optional `news`.
+5. Render with `render_standard_report(data)` for multi-stock or daily reports, or `render_detailed_report(data)` for single-stock deep dives.
+6. Run `validate_report(report_text, data)` and fix formatting issues before presenting the report.
+
+## Configuration
+
+Read `.sightconfig.json` from the current directory, this skill directory, or the user home directory. The top-level key is `stock_sight`; see `config.example.json`.
+
+News providers are optional. Supported API key sources:
+
+- `stock_sight.tavily.api_key` or `TAVILY_API_KEY`
+- `stock_sight.serpapi.api_key` or `SERPAPI_API_KEY`
+
+## Output Rules
+
+- Follow the visual and report structure in `references/visual-specs.md` when exact formatting matters.
+- Use `references/examples.md` for full standard, detailed, cross-market, and news-enabled examples.
+- Put a data source line at the end of every report.
+- Do not block the core report on missing news API keys, news provider failures, or empty news results.
+- Use `—` for unavailable market metrics such as Hong Kong or US volume ratio.
+- Include a brief investment-risk disclaimer when giving target or stop-loss style reference values.
+
+## Development Notes
+
+- Keep public API names stable: `DataSourceFactory.fetch`, `detect`, `detect_anomalies`, `render_standard_report`, `render_detailed_report`, and `validate_report`.
+- Install runtime dependencies from `requirements.txt` before importing network providers.
