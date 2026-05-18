@@ -1,8 +1,15 @@
 # StockSight-Skill
 
+[![Version](https://img.shields.io/badge/version-v0.1.0-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.1.0)
+[![Python](https://img.shields.io/badge/python-3.9%2B-2563eb)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
+[![Skill Ready](https://img.shields.io/badge/Codex%20Skill-ready-f97316)](SKILL.md)
+
 **给 agent 用的股票异动分析技能：抓行情、洗坏数据、识别风险信号，然后生成一份像金融终端快报一样的 Markdown / HTML 报告。**
 
 StockSight-Skill 不是“再写一个行情脚本”。它更像一个小型盘后分析员：先把数据按住，再把异常拎出来，最后用清楚、漂亮、可复现的方式交给用户。
+
+> Feed it a ticker. It returns a market brief your agent can actually hand to a human.
 
 ![TSLA report overview](docs/images/tsla-report-overview.png)
 
@@ -30,6 +37,14 @@ StockSight-Skill 不是“再写一个行情脚本”。它更像一个小型盘
 pip install -r requirements.txt
 ```
 
+作为 Codex skill 使用：
+
+```bash
+git clone https://github.com/GearVoid/StockSight-Skill.git
+```
+
+然后把仓库目录放进你的本地 skills 目录，或通过支持 GitHub skill 安装的 agent 直接引用这个仓库。
+
 生成一份 HTML 报告：
 
 ```bash
@@ -52,6 +67,12 @@ python scripts/report.py 002346 --provider tencent --mode detailed --save-snapsh
 
 ```bash
 python scripts/report.py --from-snapshot snapshots/002346.json --html --out reports/002346-replay.html --markdown-out outputs/002346-replay.md
+```
+
+无网络试用：
+
+```bash
+python scripts/report.py --from-snapshot examples/snapshot-sample.json --html --out reports/sample.html --markdown-out outputs/sample.md
 ```
 
 需要 PDF 时，先生成 HTML，再用你自己的浏览器或系统 PDF 工具导出。项目内部不再维护 PDF 导出脚本，避免不同系统字体导致中文乱码。
@@ -141,8 +162,13 @@ StockSight-Skill/
 |-- scripts/
 |-- tests/
 |-- references/
+|-- examples/
 |-- docs/images/
+|-- .github/ISSUE_TEMPLATE/
 |-- config.example.json
+|-- CHANGELOG.md
+|-- CONTRIBUTING.md
+|-- LICENSE
 `-- requirements.txt
 ```
 
@@ -154,9 +180,16 @@ StockSight-Skill/
 
 # StockSight-Skill
 
+[![Version](https://img.shields.io/badge/version-v0.1.0-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.1.0)
+[![Python](https://img.shields.io/badge/python-3.9%2B-2563eb)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
+[![Skill Ready](https://img.shields.io/badge/Codex%20Skill-ready-f97316)](SKILL.md)
+
 **An agent-ready stock anomaly analysis skill that fetches quotes, cleans suspicious data, detects risk signals, and renders polished Markdown / HTML reports.**
 
 StockSight-Skill is not just another quote script. It behaves like a compact market analyst: data first, signal second, report last.
+
+> Feed it a ticker. It returns a market brief your agent can actually hand to a human.
 
 ## Highlights
 
@@ -178,6 +211,14 @@ Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
+
+Use as a Codex skill:
+
+```bash
+git clone https://github.com/GearVoid/StockSight-Skill.git
+```
+
+Then place the repository in your local skills directory, or install it through an agent that supports GitHub-hosted skills.
 
 Generate an HTML report:
 
@@ -201,6 +242,12 @@ Replay from a snapshot:
 
 ```bash
 python scripts/report.py --from-snapshot snapshots/002346.json --html --out reports/002346-replay.html --markdown-out outputs/002346-replay.md
+```
+
+Try without network access:
+
+```bash
+python scripts/report.py --from-snapshot examples/snapshot-sample.json --html --out reports/sample.html --markdown-out outputs/sample.md
 ```
 
 If you need PDF, generate HTML first and export it from your own browser or system PDF tools. The project no longer ships a PDF exporter because system fonts made Chinese output unreliable.
