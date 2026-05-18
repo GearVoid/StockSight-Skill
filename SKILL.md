@@ -1,6 +1,6 @@
 ---
 name: stocksight
-description: Generate StockSight Markdown stock anomaly reports for A-share, Hong Kong, and US equities. Use when Codex needs to fetch or analyze market data, detect unusual volume/turnover/return signals, add optional news context, render standard or detailed stock reports, validate output formatting, or follow the StockSight visual/reporting conventions.
+description: Agent-ready stock anomaly analyst for A-share, Hong Kong, and US equities. Use when Codex needs to fetch quotes, clean suspicious market fields, detect unusual volume/turnover/return signals, add optional news context, render premium Markdown/HTML/PDF stock reports, or validate StockSight report formatting.
 ---
 
 # StockSight
