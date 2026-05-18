@@ -4,39 +4,45 @@
 from __future__ import annotations
 
 import argparse
+import json
+import logging
 import sys
-import tempfile
+from dataclasses import asdict, fields
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Type, TypeVar
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core import DataSourceError, NewsItem, ReportData, StockData, detect, normalize_quote_data  # noqa: E402
+from core import DataSourceError, NewsItem, ReportData, RiskSignal, StockData, detect, normalize_quote_data  # noqa: E402
 from formatter import (  # noqa: E402
     render_detailed_report,
     render_html_report,
     render_standard_report,
     validate_report,
 )
+from news import search_configured_news  # noqa: E402
 from providers import (  # noqa: E402
     EastMoneyDataSource,
     SinaDataSource,
     TencentDataSource,
     YahooFinanceDataSource,
 )
-from news import search_configured_news  # noqa: E402
-from scripts.pdf_export import (  # noqa: E402
-    PdfExportError,
-    export_pdf_from_html,
-    export_text_pdf,
-)
-
-import logging
 
 logger = logging.getLogger(__name__)
+
+SNAPSHOT_SCHEMA_VERSION = 1
+T = TypeVar("T")
+
+
+class ReportBuildError(Exception):
+    """Live report generation failed before rendering."""
+
+    def __init__(self, message: str, exit_code: int):
+        super().__init__(message)
+        self.exit_code = exit_code
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
@@ -45,7 +51,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "codes",
-        nargs="+",
+        nargs="*",
         help="Stock codes or tickers, for example 002346 600208 00700 AAPL.",
     )
     parser.add_argument(
@@ -77,30 +83,9 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         help="Also generate a self-contained HTML report.",
     )
     parser.add_argument(
-        "--pdf",
-        action="store_true",
-        help="Also export a stable PDF through local headless Edge/Chrome.",
-    )
-    parser.add_argument(
-        "--pdf-engine",
-        choices=["auto", "browser", "text"],
-        default="auto",
-        help="PDF engine. auto uses browser first, then text fallback; browser preserves HTML visuals.",
-    )
-    parser.add_argument(
         "--out",
         type=Path,
-        help="Output path. With --html this is HTML; with --pdf only this is PDF; otherwise Markdown.",
-    )
-    parser.add_argument(
-        "--pdf-out",
-        type=Path,
-        help="Optional PDF output path. Defaults next to the HTML path or outputs/<code>-stocksight-report.pdf.",
-    )
-    parser.add_argument(
-        "--browser-path",
-        type=Path,
-        help="Optional path to msedge/chrome/chromium for PDF export.",
+        help="Output path. With --html this is the HTML path; otherwise it is the Markdown path.",
     )
     parser.add_argument(
         "--markdown-out",
@@ -109,7 +94,17 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--title",
-        help="Custom report title.",
+        help="Custom report title. When used with --from-snapshot it intentionally changes the rendered title.",
+    )
+    parser.add_argument(
+        "--save-snapshot",
+        type=Path,
+        help="Save the exact normalized report payload for reproducible rendering.",
+    )
+    parser.add_argument(
+        "--from-snapshot",
+        type=Path,
+        help="Render from a saved snapshot instead of fetching live quotes, news, or signals.",
     )
     parser.add_argument(
         "--no-validate",
@@ -150,7 +145,7 @@ def _fetch_quotes(codes: Sequence[str], provider: str):
     """Fetch quotes with provider failover and Sina market hints."""
     remaining = list(codes)
     all_data = {}
-    used_name = "无可用数据"
+    used_name = "无可用数据源"
     hints = _market_hints(codes)
 
     for source in _source_chain(provider):
@@ -216,9 +211,9 @@ def _fetch_sector_benchmarks(stocks: Sequence[StockData], provider: str) -> dict
         result = em.get_sector_benchmarks(codes)
         if result:
             benchmarks = result
-            logger.info("板块基准已注入: %d 只", len(benchmarks))
-    except Exception as e:
-        logger.warning("板块基准获取失败，将使用同批均值: %s", e)
+            logger.info("板块基准已注入：%d 只", len(benchmarks))
+    except Exception as exc:
+        logger.warning("板块基准获取失败，将使用同批均值：%s", exc)
     return benchmarks
 
 
@@ -240,48 +235,148 @@ def _resolve_html_path(args, stock: StockData) -> Path:
     return _default_output_path(stock, ".html")
 
 
-def _resolve_pdf_path(args, html_path: Optional[Path], stock: StockData) -> Path:
-    if args.pdf_out:
-        return args.pdf_out
-    if args.pdf and not args.html and args.out:
-        return args.out
-    if html_path is not None:
-        return html_path.with_suffix(".pdf")
-    return _default_output_path(stock, ".pdf")
+def _dataclass_from_dict(cls: Type[T], payload: Dict[str, Any]) -> T:
+    allowed = {field.name for field in fields(cls)}
+    return cls(**{key: value for key, value in payload.items() if key in allowed})
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
-    parser = _build_arg_parser()
-    args = parser.parse_args(argv)
-    codes = _normalize_codes(args.codes)
-    if not codes:
-        parser.error("at least one stock code is required")
+def _report_to_payload(data: ReportData) -> Dict[str, Any]:
+    return {
+        "title": data.title,
+        "summary": data.summary,
+        "stocks": [asdict(stock) for stock in data.stocks],
+        "signals": [asdict(signal) for signal in data.signals],
+        "data_source": data.data_source,
+        "timestamp": data.timestamp,
+        "news": [asdict(item) for item in data.news],
+    }
 
+
+def _report_from_payload(payload: Dict[str, Any]) -> ReportData:
+    return ReportData(
+        title=str(payload.get("title", "StockSight Report")),
+        summary=str(payload.get("summary", "")),
+        stocks=[_dataclass_from_dict(StockData, item) for item in payload.get("stocks", [])],
+        signals=[_dataclass_from_dict(RiskSignal, item) for item in payload.get("signals", [])],
+        data_source=str(payload.get("data_source", "snapshot")),
+        timestamp=str(payload.get("timestamp", "")),
+        news=[_dataclass_from_dict(NewsItem, item) for item in payload.get("news", [])],
+    )
+
+
+def _save_snapshot(
+    path: Path,
+    data: ReportData,
+    mode: str,
+    provider: str,
+    failed: Sequence[str],
+    quality_notes: Sequence[str],
+) -> Path:
+    payload = {
+        "schema_version": SNAPSHOT_SCHEMA_VERSION,
+        "generated_by": "StockSight-Skill",
+        "mode": mode,
+        "provider": provider,
+        "failed_codes": list(failed),
+        "quality_notes": list(quality_notes),
+        "report": _report_to_payload(data),
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+    return path.resolve()
+
+
+def _load_snapshot(path: Path) -> Tuple[ReportData, Dict[str, Any]]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise ValueError(f"cannot read snapshot: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"invalid snapshot JSON: {path}") from exc
+
+    if not isinstance(payload, dict) or "report" not in payload:
+        raise ValueError("snapshot must contain a report object")
+
+    data = _report_from_payload(payload["report"])
+    if not data.stocks:
+        raise ValueError("snapshot contains no stocks")
+
+    meta = {
+        "schema_version": payload.get("schema_version"),
+        "mode": payload.get("mode", "auto"),
+        "provider": payload.get("provider", "snapshot"),
+        "failed_codes": list(payload.get("failed_codes", [])),
+        "quality_notes": list(payload.get("quality_notes", [])),
+    }
+    return data, meta
+
+
+def _build_live_report(args, codes: Sequence[str]) -> Tuple[ReportData, str, List[str], List[str]]:
     try:
         stock_map, failed, source_name = _fetch_quotes(codes, args.provider)
     except Exception as exc:
-        print(f"StockSight fetch failed: {exc}", file=sys.stderr)
-        return 2
+        raise ReportBuildError(f"StockSight fetch failed: {exc}", 2) from exc
 
     raw_stocks = [stock_map[code] for code in codes if code in stock_map]
     stocks, quality_notes = normalize_quote_data(raw_stocks)
     if not stocks:
-        print(f"No usable quote data. Failed codes: {', '.join(failed or codes)}", file=sys.stderr)
-        return 1
+        raise ReportBuildError(f"No usable quote data. Failed codes: {', '.join(failed or codes)}", 1)
 
     signals = detect(stocks, sector_benchmarks=_fetch_sector_benchmarks(stocks, args.provider))
     mode = _select_mode(args.mode, stocks)
     news = _fetch_news(stocks, args.news, args.news_results)
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     data = ReportData(
         title=args.title or _default_title(stocks, mode),
         summary=_summary(stocks, len(signals)),
         stocks=stocks,
         signals=signals,
         data_source=source_name,
-        timestamp=timestamp,
+        timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         news=news,
     )
+    return data, mode, failed, quality_notes
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    parser = _build_arg_parser()
+    args = parser.parse_args(argv)
+    codes = _normalize_codes(args.codes)
+
+    failed: List[str] = []
+    quality_notes: List[str] = []
+
+    if args.from_snapshot:
+        try:
+            data, meta = _load_snapshot(args.from_snapshot)
+        except ValueError as exc:
+            print(f"StockSight snapshot failed: {exc}", file=sys.stderr)
+            return 2
+        if args.title:
+            data.title = args.title
+        mode = args.mode if args.mode != "auto" else _select_mode(str(meta.get("mode", "auto")), data.stocks)
+        failed = list(meta.get("failed_codes", []))
+        quality_notes = list(meta.get("quality_notes", []))
+        snapshot_provider = str(meta.get("provider", "snapshot"))
+    else:
+        if not codes:
+            parser.error("at least one stock code is required unless --from-snapshot is used")
+        try:
+            data, mode, failed, quality_notes = _build_live_report(args, codes)
+        except ReportBuildError as exc:
+            print(str(exc), file=sys.stderr)
+            return exc.exit_code
+        snapshot_provider = args.provider
+
+    if args.save_snapshot:
+        snapshot_path = _save_snapshot(
+            args.save_snapshot,
+            data,
+            mode=mode,
+            provider=snapshot_provider,
+            failed=failed,
+            quality_notes=quality_notes,
+        )
+        print(f"Snapshot: {snapshot_path}")
 
     if mode == "standard":
         markdown = render_standard_report(data)
@@ -295,7 +390,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return 3
 
     markdown_path = _write_text(
-        args.markdown_out if (args.html or args.pdf) else args.out,
+        args.markdown_out if args.html else args.out,
         markdown,
     )
     if markdown_path is None:
@@ -303,37 +398,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     else:
         print(f"Markdown report: {markdown_path}")
 
-    html_text = render_html_report(data, mode=mode) if (args.html or args.pdf) else ""
-    resolved_html: Optional[Path] = None
     if args.html:
-        html_path = _resolve_html_path(args, stocks[0])
-        resolved_html = _write_text(html_path, html_text)
+        html_path = _resolve_html_path(args, data.stocks[0])
+        resolved_html = _write_text(html_path, render_html_report(data, mode=mode))
         print(f"HTML report: {resolved_html}")
-
-    if args.pdf:
-        pdf_path = _resolve_pdf_path(args, resolved_html, stocks[0])
-        try:
-            if args.pdf_engine == "text":
-                resolved_pdf = export_text_pdf(markdown, pdf_path, data.title)
-            else:
-                try:
-                    if resolved_html is not None:
-                        source_html = resolved_html
-                        resolved_pdf = export_pdf_from_html(source_html, pdf_path, args.browser_path)
-                    else:
-                        with tempfile.TemporaryDirectory(prefix="stocksight-pdf-") as tmpdir:
-                            source_html = Path(tmpdir) / f"{stocks[0].code}-stocksight-report.html"
-                            source_html.write_text(html_text, encoding="utf-8")
-                            resolved_pdf = export_pdf_from_html(source_html, pdf_path, args.browser_path)
-                except PdfExportError:
-                    if args.pdf_engine == "browser":
-                        raise
-                    print("Browser PDF export failed; falling back to text PDF.", file=sys.stderr)
-                    resolved_pdf = export_text_pdf(markdown, pdf_path, data.title)
-        except PdfExportError as exc:
-            print(f"PDF export failed: {exc}", file=sys.stderr)
-            return 4
-        print(f"PDF report: {resolved_pdf}")
 
     if failed:
         print(f"Skipped failed codes: {', '.join(failed)}", file=sys.stderr)
