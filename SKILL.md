@@ -5,7 +5,7 @@ description: Generate StockSight Markdown stock anomaly reports for A-share, Hon
 
 # StockSight
 
-Use this skill to produce StockSight stock anomaly reports from market data. Keep the workflow data-first: fetch quotes, detect signals, optionally add news, render premium Markdown/HTML, then validate the report before returning it.
+Use this skill to produce StockSight stock anomaly reports from market data. Keep the workflow data-first: fetch quotes, detect signals, optionally add news, render premium Markdown or self-contained HTML, then validate Markdown before returning it.
 
 ## Environment
 
@@ -23,8 +23,9 @@ If dependency installation is unavailable, still use this skill for report forma
 2. Run `detect(stocks)` or `detect_anomalies(stocks)` to produce `RiskSignal` entries.
 3. Optionally search news only when an API key is configured. If news lookup fails or returns no results, skip the news section and continue.
 4. Create `ReportData` with title, summary, stocks, signals, data source, timestamp, and optional `news`.
-5. Render with `render_standard_report(data)` for multi-stock or daily reports, or `render_detailed_report(data)` for single-stock deep dives.
-6. Run `validate_report(report_text, data)` and fix formatting issues before presenting the report.
+5. Render Markdown with `render_standard_report(data)` for multi-stock or daily reports, or `render_detailed_report(data)` for single-stock deep dives.
+6. When the user wants a browser-ready report, render HTML with `render_html_report(data, mode="standard"|"detailed")`.
+7. Run `validate_report(report_text, data)` for Markdown output and fix formatting issues before presenting the report.
 
 ## Provider Guidance
 
@@ -46,10 +47,12 @@ News providers are optional. Supported API key sources:
 
 - Follow the visual and report structure in `references/visual-specs.md` when exact formatting matters.
 - Use `references/examples.md` for full standard, detailed, cross-market, and news-enabled examples.
-- Use lightweight GitHub-compatible HTML (`<kbd>` and `<details>`) for premium report polish.
+- Use lightweight GitHub-compatible HTML (`<kbd>` and `<details>`) plus Unicode signal bars for Markdown polish.
+- Use `render_html_report` for a full browser-ready page with built-in CSS charts; do not hand-write one-off HTML reports as the core output path.
 - Put a data source line at the end of every report.
 - Do not block the core report on missing news API keys, news provider failures, or empty news results.
 - Use `—` for unavailable market metrics such as Hong Kong or US volume ratio.
+- Show data-quality notes when a metric is unavailable or clearly outside normal bounds.
 - Include a brief investment-risk disclaimer when giving target or stop-loss style reference values.
 
 ## Error Handling
@@ -73,5 +76,5 @@ stocksight/
 
 ## Development Notes
 
-- Keep public API names stable: `DataSourceFactory.fetch`, `detect`, `detect_anomalies`, `render_standard_report`, `render_detailed_report`, and `validate_report`.
+- Keep public API names stable: `DataSourceFactory.fetch`, `detect`, `detect_anomalies`, `render_standard_report`, `render_detailed_report`, `render_html_report`, and `validate_report`.
 - Install runtime dependencies from `requirements.txt` before importing network providers.
