@@ -17,14 +17,37 @@ from core import RiskSignal, StockData, ReportData
 from .base import (
     EmojiMap,
     change_emoji,
+    fmt_signal_level,
     format_change_plain,
     format_price,
     format_volume_ratio,
-    format_turnover,
     market_tag,
+    render_badge,
+    render_metric_strip,
+    render_signal_bar,
     risk_level_symbol,
     render_table,
 )
+
+
+def _stock_label(stock: StockData) -> str:
+    """股票显示名，包含市场标签。"""
+    tag_value = market_tag(stock.market)
+    tag = f" [{tag_value}]" if tag_value else ""
+    return f"{stock.code} {stock.name}{tag}"
+
+
+def _stock_level(stock: StockData, signals: List[RiskSignal]) -> int:
+    """取单只股票最高风险等级。"""
+    return max((sig.level for sig in signals if sig.stock_code == stock.code), default=0)
+
+
+def _highest_risk(signals: List[RiskSignal]) -> str:
+    """整份报告最高风险标签。"""
+    max_level = max((sig.level for sig in signals), default=0)
+    if max_level == 0:
+        return f"{EmojiMap.OP_BUY} {render_badge('平稳')}"
+    return f"{fmt_signal_level(max_level)} {render_signal_bar(max_level)}"
 
 
 def _anomaly_flag(stock: StockData, signals: List[RiskSignal]) -> str:
@@ -34,7 +57,8 @@ def _anomaly_flag(stock: StockData, signals: List[RiskSignal]) -> str:
         if signal.stock_code == stock.code:
             risk_types.append(signal.risk_type)
     if risk_types:
-        return f"{' + '.join(risk_types)} {EmojiMap.ANOMALY}"
+        level = _stock_level(stock, signals)
+        return f"{render_badge(' + '.join(risk_types))} {render_signal_bar(level)} {EmojiMap.ANOMALY}"
     return "—"
 
 
@@ -46,7 +70,7 @@ def _build_stock_table(stocks: List[StockData], signals: List[RiskSignal]) -> st
         change_str = format_change_plain(s.change_percent)
         emoji = change_emoji(s.change_percent)
         rows.append([
-            f"{s.code} {s.name}",
+            _stock_label(s),
             format_price(s.current_price),
             f"{change_str} {emoji}",
             format_volume_ratio(s.volume_ratio),
@@ -67,9 +91,9 @@ def _build_risk_table(signals: List[RiskSignal]) -> str:
         dev_str = f"{sig.deviation_value:.1f}{unit}" if unit else f"{sig.deviation_value:.1f}"
         rows.append([
             sig.stock_code,
-            sig.risk_type,
+            render_badge(sig.risk_type),
             f"{sig.description}（偏离度 {dev_str}）",
-            level_symbol,
+            f"{level_symbol} {render_signal_bar(sig.level)}",
         ])
     return render_table(headers, rows)
 
@@ -84,7 +108,7 @@ def _build_suggestions(stocks: List[StockData], signals: List[RiskSignal]) -> st
             if sig.stock_code == stock.code:
                 level = max(level, sig.level)
 
-        code_name = f"{stock.code} {stock.name}"
+        code_name = _stock_label(stock)
         if level >= 3:
             symbol = EmojiMap.OP_SELL
             advice = "风险过高，建议关注后续走势后决策"
@@ -101,6 +125,34 @@ def _build_suggestions(stocks: List[StockData], signals: List[RiskSignal]) -> st
         lines.append(f"{symbol} {code_name}：{advice}")
 
     return "\n".join(lines)
+
+
+def _render_market_pulse(data: ReportData) -> str:
+    """渲染标准报告顶部市场脉冲。"""
+    signal_codes = {sig.stock_code for sig in data.signals}
+    metrics = [
+        ("覆盖标的", f"{len(data.stocks)} 只"),
+        ("异动标的", f"{len(signal_codes)} 只"),
+        ("最高风险", _highest_risk(data.signals)),
+        ("数据源", data.data_source),
+    ]
+    return render_metric_strip(metrics)
+
+
+def _render_news_details(data: ReportData) -> str:
+    """渲染可折叠新闻区块。"""
+    if not data.news:
+        return ""
+    news_headers = ["来源", "标题", "时间"]
+    news_rows = [[n.source or "—", n.title or "—", n.published_at or "—"] for n in data.news[:5]]
+    return "\n".join([
+        "<details>",
+        f"<summary>{EmojiMap.NEWS} 相关资讯</summary>",
+        "",
+        render_table(news_headers, news_rows),
+        "",
+        "</details>",
+    ])
 
 
 def render_standard_report(data: ReportData) -> str:
@@ -122,7 +174,13 @@ def render_standard_report(data: ReportData) -> str:
     parts.append(f"> {EmojiMap.REPORT} 一句话总结：{data.summary}")
     parts.append("")
 
-    # 3. 异动股票列表
+    # 3. 市场脉冲
+    parts.append(f"## {EmojiMap.AMOUNT} 市场脉冲")
+    parts.append("")
+    parts.append(_render_market_pulse(data))
+    parts.append("")
+
+    # 4. 异动股票列表
     parts.append(f"## {EmojiMap.LIST} 异动股票列表")
     parts.append("")
 
@@ -138,10 +196,8 @@ def render_standard_report(data: ReportData) -> str:
     for s in ordered_stocks:
         change_str = format_change_plain(s.change_percent)
         emoji = change_emoji(s.change_percent)
-        tag_value = market_tag(s.market)
-        tag = f" [{tag_value}]" if tag_value else ""
         rows.append([
-            f"{s.code} {s.name}{tag}",
+            _stock_label(s),
             format_price(s.current_price, s.market),
             f"{change_str} {emoji}",
             format_volume_ratio(s.volume_ratio),
@@ -150,7 +206,7 @@ def render_standard_report(data: ReportData) -> str:
     parts.append(render_table(headers, rows, col_align=["left", "right", "right", "right", "left"]))
     parts.append("")
 
-    # 4. 风险提示
+    # 5. 风险提示
     if data.signals:
         parts.append(f"## {EmojiMap.RISK} 风险提示")
         parts.append("")
@@ -164,25 +220,19 @@ def render_standard_report(data: ReportData) -> str:
         parts.append("✅ 未发现显著异动，当前市场状态平稳。")
         parts.append("")
 
-    # 5. 操作建议
+    # 6. 操作建议
     if data.signals:
         parts.append(f"## {EmojiMap.CONCLUSION} 操作建议")
         parts.append("")
         parts.append(_build_suggestions(data.stocks, data.signals))
         parts.append("")
 
-    # 6. 相关资讯（可选）
+    # 7. 相关资讯（可选）
     if data.news:
-        parts.append(f"## {EmojiMap.NEWS} 相关资讯")
-        parts.append("")
-        news_headers = ["来源", "标题", "时间"]
-        news_rows = []
-        for n in data.news[:5]:
-            news_rows.append([n.source, n.title, n.published_at])
-        parts.append(render_table(news_headers, news_rows))
+        parts.append(_render_news_details(data))
         parts.append("")
 
-    # 7. 数据来源标注
+    # 8. 数据来源标注
     parts.append(f"{EmojiMap.DATA_SOURCE} 数据来源：{data.data_source} | {EmojiMap.CLOCK} {data.timestamp}")
 
     return "\n".join(parts)

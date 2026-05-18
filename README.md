@@ -8,6 +8,7 @@ StockSight is a Codex skill for generating Markdown stock anomaly reports across
 - Anomaly detection for volume ratio, turnover rate, and excess return signals
 - Standard multi-stock reports and detailed single-stock reports
 - Optional news enrichment through Tavily or SerpAPI
+- Premium Markdown/HTML output with compact badges, signal bars, and collapsible news
 - Markdown output validation against the StockSight visual contract
 
 ## Usage

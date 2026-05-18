@@ -1,6 +1,6 @@
 # StockSight Visual Specs
 
-Use this reference when exact report formatting matters. Keep generated reports compact, scannable, and consistent.
+Use this reference when exact report formatting matters. Keep generated reports compact, scannable, and consistent. The default style is premium Markdown with a small amount of GitHub-compatible HTML.
 
 ## Report Order
 
@@ -8,12 +8,25 @@ Every report uses this order:
 
 1. H1 report title
 2. One-line summary blockquote
-3. Core data section
-4. Optional detailed analysis section
-5. Risk section
-6. Optional action suggestions
-7. Optional related news
-8. Data source line
+3. Top metric strip: `市场脉冲` for standard reports or `核心看板` for detailed reports
+4. Core data section
+5. Optional detailed analysis section
+6. Risk section
+7. Optional action suggestions
+8. Optional related news in `<details>`
+9. Data source line
+
+## Premium Markdown Elements
+
+Use only lightweight, portable HTML:
+
+| Element | Purpose | Example |
+|------|------|------|
+| `<kbd>...</kbd>` | Compact badges for risk type, market state, and labels | `<kbd>量比偏离</kbd>` |
+| `<details><summary>...</summary>` | Collapsible news section | `<summary>🗞️ 相关资讯</summary>` |
+| `▰▱` bars | Signal/risk intensity | `▰▰▰▱▱` |
+
+Avoid CSS, scripts, external images, and complex HTML tables.
 
 ## Emoji Semantics
 
@@ -36,6 +49,7 @@ Every report uses this order:
 | 🔥 | anomaly signal |
 | 🔸 / 🔶 / 🔴 | watch / warning / danger |
 | 🟢 / 🟡 / 🔴 | positive / hold or watch / avoid |
+| ▰ / ▱ | filled / empty signal intensity units |
 
 ## Table Rules
 
@@ -77,20 +91,26 @@ Render news only when `ReportData.news` is non-empty.
 Standard reports:
 
 ```markdown
-## 🗞️ 相关资讯
+<details>
+<summary>🗞️ 相关资讯</summary>
 
 | 来源 | 标题 | 时间 |
 |:---|:---|:---|
 | 新浪财经 | 恒生电子成交活跃 | 05-18 10:00 |
+
+</details>
 ```
 
 Detailed reports:
 
 ```markdown
-## 🗞️ 相关资讯
+<details>
+<summary>🗞️ 相关资讯</summary>
 
 [新浪财经] 恒生电子成交活跃（05-18 10:00）
   盘中成交显著放大，资金关注度提升
+
+</details>
 ```
 
 ## Failure Handling

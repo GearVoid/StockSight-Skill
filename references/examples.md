@@ -9,11 +9,17 @@ Use these examples as formatting references, not as market recommendations.
 
 > 📰 一句话总结：今日3只股票中1只触发异动信号，恒生电子量比偏离需重点关注
 
+## 📊 市场脉冲
+
+| <kbd>覆盖标的</kbd> | <kbd>异动标的</kbd> | <kbd>最高风险</kbd> | <kbd>数据源</kbd> |
+|:---:|:---:|:---:|:---:|
+| 3 只 | 1 只 | 🔶 警告 ▰▰▰▱▱ | 腾讯财经 + 新浪财经 |
+
 ## 📋 异动股票列表
 
 | 股票 | 现价 | 涨跌幅 | 量比 | 异动信号 |
 |:---|---:|---:|---:|:---|
-| 600570 恒生电子 [A] | RMB 27.93 | +3.2% 📈 | 2.15 | 量比偏离 🔥 |
+| 600570 恒生电子 [A] | RMB 27.93 | +3.2% 📈 | 2.15 | <kbd>量比偏离</kbd> ▰▰▰▱▱ 🔥 |
 | 00700 腾讯控股 [H] | HKD 380.00 | +1.5% 📈 | — | — |
 | AAPL 苹果 [U] | USD 192.3456 | +0.8% 📈 | — | — |
 
@@ -21,7 +27,7 @@ Use these examples as formatting references, not as market recommendations.
 
 | 股票 | 风险类型 | 偏离说明 | 等级 |
 |:---|:---|:---|:---|
-| 600570 | 量比偏离 | 量比2.15 vs 均值1.12，为均值的1.9倍（偏离度 1.9x） | 🔶 |
+| 600570 | <kbd>量比偏离</kbd> | 量比2.15 vs 均值1.12，为均值的1.9倍（偏离度 1.9x） | 🔶 ▰▰▰▱▱ |
 
 ## 🎯 操作建议
 
@@ -38,6 +44,12 @@ Use these examples as formatting references, not as market recommendations.
 # 🔍 恒生电子 (600570) 深度分析报告
 
 > 📰 一句话总结：`[A]` 恒生电子今日收RMB 27.93，涨跌幅+3.2% 📈，量比偏离（偏离度 1.9x）
+
+## 📊 核心看板
+
+| <kbd>当前价</kbd> | <kbd>涨跌幅</kbd> | <kbd>量比</kbd> | <kbd>换手率</kbd> | <kbd>最高风险</kbd> |
+|:---:|:---:|:---:|:---:|:---:|
+| RMB 27.93 | +3.2% 📈 | 2.15 | 5.3% | 🔶 警告 ▰▰▰▱▱ |
 
 ## 💰 价格概览
 
@@ -61,7 +73,9 @@ Use these examples as formatting references, not as market recommendations.
 
 ## 🔍 异动分析
 
-### 量比偏离（🔶）
+### 🔶 量比偏离
+<kbd>🔶 警告</kbd> ▰▰▰▱▱
+
 量比2.15 vs 均值1.12，为均值的1.9倍（偏离度 1.9x）。
 
 可能原因：
@@ -90,10 +104,13 @@ Use these examples as formatting references, not as market recommendations.
 ## News-Enabled Report
 
 ```markdown
-## 🗞️ 相关资讯
+<details>
+<summary>🗞️ 相关资讯</summary>
 
 | 来源 | 标题 | 时间 |
 |:---|:---|:---|
 | 新浪财经 | 恒生电子成交活跃 | 05-18 10:00 |
 | 雪球 | 软件板块盘中走强 | 1小时前 |
+
+</details>
 ```

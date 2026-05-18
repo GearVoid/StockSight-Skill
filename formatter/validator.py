@@ -89,6 +89,7 @@ def validate_report(report_text: str, data: Optional[ReportData] = None) -> Vali
     _validate_block_order(result, report_text)
     _validate_table_columns(result, report_text)
     _validate_emoji(result, report_text)
+    _validate_allowed_html(result, report_text)
     _validate_empty_data(result, report_text)
 
     return result
@@ -124,7 +125,11 @@ def _validate_risk_section(
     if has_signals and not has_risk_section:
         result.add_error("存在异动信号但缺少 ⚠️ 风险提示区块")
 
-    if not has_signals and has_risk_section:
+    calm_risk_copy = any(
+        phrase in text
+        for phrase in ["未发现显著异动", "未检测到显著风险", "当前市场状态平稳"]
+    )
+    if not has_signals and has_risk_section and not calm_risk_copy:
         result.add_warning("无异动信号但仍包含风险提示区块")
 
 
@@ -174,6 +179,16 @@ def _validate_emoji(result: ValidationResult, text: str):
         symbol = match.group(0)
         if symbol not in REGISTERED_EMOJI:
             result.add_warning(f"未注册的 Emoji 符号: {symbol}")
+
+
+def _validate_allowed_html(result: ValidationResult, text: str):
+    """允许轻量 GitHub Markdown HTML，提示复杂标签。"""
+    allowed_tags = {"kbd", "details", "summary"}
+    tag_pattern = re.compile(r"</?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>")
+    for match in tag_pattern.finditer(text):
+        tag = match.group(1).lower()
+        if tag not in allowed_tags:
+            result.add_warning(f"不建议使用的 HTML 标签: <{tag}>")
 
 
 def _validate_empty_data(result: ValidationResult, text: str):

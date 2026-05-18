@@ -20,6 +20,7 @@ from core import RiskSignal, StockData, ReportData
 from .base import (
     EmojiMap,
     change_emoji,
+    fmt_signal_level,
     format_price,
     format_change_plain,
     format_volume,
@@ -27,8 +28,10 @@ from .base import (
     format_volume_ratio,
     format_turnover,
     market_tag,
+    render_badge,
+    render_metric_strip,
+    render_signal_bar,
     risk_level_symbol,
-    op_symbol,
     render_table,
 )
 
@@ -71,9 +74,50 @@ def _risk_warnings(signals: List[RiskSignal]) -> str:
     lines = []
     for i, sig in enumerate(signals):
         symbol = risk_level_symbol(sig.level)
-        lines.append(f"{symbol} **{sig.risk_type}**")
+        lines.append(f"{symbol} {render_badge(sig.risk_type)} {render_signal_bar(sig.level)}")
         lines.append(f"{sig.description}（偏离度 {sig.deviation_value:.1f}{sig.deviation_unit}）。")
         lines.append("")
+    return "\n".join(lines)
+
+
+def _highest_risk(signals: List[RiskSignal]) -> str:
+    """最高风险显示。"""
+    max_level = max((sig.level for sig in signals), default=0)
+    if max_level == 0:
+        return f"{EmojiMap.OP_BUY} {render_badge('平稳')}"
+    return f"{fmt_signal_level(max_level)} {render_signal_bar(max_level)}"
+
+
+def _render_core_panel(stock: StockData, signals: List[RiskSignal]) -> str:
+    """渲染详细报告核心看板。"""
+    metrics = [
+        ("当前价", format_price(stock.current_price, stock.market)),
+        ("涨跌幅", f"{format_change_plain(stock.change_percent)} {change_emoji(stock.change_percent)}"),
+        ("量比", format_volume_ratio(stock.volume_ratio)),
+        ("换手率", format_turnover(stock.turnover_rate)),
+        ("最高风险", _highest_risk(signals)),
+    ]
+    return render_metric_strip(metrics)
+
+
+def _render_news_details(data: ReportData) -> str:
+    """渲染可折叠新闻区块。"""
+    if not data.news:
+        return ""
+    lines = [
+        "<details>",
+        f"<summary>{EmojiMap.NEWS} 相关资讯</summary>",
+        "",
+    ]
+    for item in data.news[:5]:
+        title = item.title or "—"
+        source = item.source or "—"
+        time = f"（{item.published_at}）" if item.published_at else ""
+        lines.append(f"[{source}] {title}{time}")
+        if item.snippet:
+            lines.append(f"  {EmojiMap.NOTE} {item.snippet}")
+        lines.append("")
+    lines.append("</details>")
     return "\n".join(lines)
 
 
@@ -97,7 +141,7 @@ def _dimension_table(stock: StockData, signals: List[RiskSignal]) -> str:
         active_note = "多项指标异常，需重点监控"
     elif max_level >= 2:
         active = f"{risk_level_symbol(2)} 关注"
-        active_note = "量比/换手率异常，需确认持续性"
+        active_note = f"量比/换手率异常，需确认持续性 {render_signal_bar(2)}"
     elif max_level >= 1:
         active = f"{risk_level_symbol(1)} 留意"
         active_note = "轻度偏离，常规关注"
@@ -170,6 +214,12 @@ def render_detailed_report(data: ReportData) -> str:
     parts.append("")
 
     # 3. 价格概览（2列）
+    parts.append(f"## {EmojiMap.AMOUNT} 核心看板")
+    parts.append("")
+    parts.append(_render_core_panel(stock, signals))
+    parts.append("")
+
+    # 4. 价格概览（2列）
     parts.append(f"## {EmojiMap.PRICE} 价格概览")
     parts.append("")
     parts.append(
@@ -188,7 +238,7 @@ def render_detailed_report(data: ReportData) -> str:
     )
     parts.append("")
 
-    # 4. 量价指标（段落列表）
+    # 5. 量价指标（段落列表）
     parts.append(f"## {EmojiMap.AMOUNT} 量价指标")
     parts.append("")
     emoji_c = change_emoji(stock.change_percent)
@@ -200,13 +250,15 @@ def render_detailed_report(data: ReportData) -> str:
     parts.append(f"- {EmojiMap.TURNOVER} 换手率：{format_turnover(stock.turnover_rate)}")
     parts.append("")
 
-    # 5. 异动分析
+    # 6. 异动分析
     if signals:
         parts.append(f"## {EmojiMap.ANALYSIS} 异动分析")
         parts.append("")
         for sig in signals:
             symbol = risk_level_symbol(sig.level)
-            parts.append(f"### {sig.risk_type}（{symbol}）")
+            parts.append(f"### {symbol} {sig.risk_type}")
+            parts.append(f"{render_badge(fmt_signal_level(sig.level))} {render_signal_bar(sig.level)}")
+            parts.append("")
             parts.append(f"{sig.description}（偏离度 {sig.deviation_value:.1f}{sig.deviation_unit}）。")
             parts.append("")
             # 补充可能的分析
@@ -217,7 +269,7 @@ def render_detailed_report(data: ReportData) -> str:
                 parts.append("- 板块内部轮动")
                 parts.append("")
 
-    # 6. 风险提示
+    # 7. 风险提示
     if signals:
         parts.append(f"## {EmojiMap.RISK} 风险提示")
         parts.append("")
@@ -228,7 +280,7 @@ def render_detailed_report(data: ReportData) -> str:
         parts.append("当前未检测到显著风险信号。")
         parts.append("")
 
-    # 7. 操作建议
+    # 8. 操作建议
     parts.append(f"## {EmojiMap.CONCLUSION} 操作建议")
     parts.append("")
     max_level = max((s.level for s in signals), default=0)
@@ -253,26 +305,18 @@ def render_detailed_report(data: ReportData) -> str:
     parts.append("> 以上参考数值基于技术指标计算，不构成投资建议。")
     parts.append("")
 
-    # 8. 关注维度汇总表
+    # 9. 关注维度汇总表
     parts.append(f"### 关注维度")
     parts.append("")
     parts.append(_dimension_table(stock, signals))
     parts.append("")
 
-    # 9. 相关资讯（可选，详细模式用段落格式）
+    # 10. 相关资讯（可选，详细模式用段落格式）
     if data.news:
-        parts.append(f"## {EmojiMap.NEWS} 相关资讯")
+        parts.append(_render_news_details(data))
         parts.append("")
-        for n in data.news[:5]:
-            line = f"[{n.source}] {n.title}"
-            if n.published_at:
-                line += f"（{n.published_at}）"
-            parts.append(line)
-            if n.snippet:
-                parts.append(f"  {EmojiMap.NOTE} {n.snippet}")
-            parts.append("")
 
-    # 10. 数据来源
+    # 11. 数据来源
     parts.append(f"{EmojiMap.DATA_SOURCE} 数据来源：{data.data_source} | {EmojiMap.CLOCK} {data.timestamp}")
 
     return "\n".join(parts)
