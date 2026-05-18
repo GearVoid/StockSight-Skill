@@ -7,6 +7,16 @@ description: Generate StockSight Markdown stock anomaly reports for A-share, Hon
 
 Use this skill to produce StockSight stock anomaly reports from market data. Keep the workflow data-first: fetch quotes, detect signals, optionally add news, render Markdown, then validate the report before returning it.
 
+## Environment
+
+Install dependencies before importing network providers:
+
+```bash
+pip install -r requirements.txt
+```
+
+If dependency installation is unavailable, still use this skill for report formatting when the user provides structured `StockData`-like inputs.
+
 ## Workflow
 
 1. Build one or more `StockData` records from the available provider data.
@@ -15,6 +25,13 @@ Use this skill to produce StockSight stock anomaly reports from market data. Kee
 4. Create `ReportData` with title, summary, stocks, signals, data source, timestamp, and optional `news`.
 5. Render with `render_standard_report(data)` for multi-stock or daily reports, or `render_detailed_report(data)` for single-stock deep dives.
 6. Run `validate_report(report_text, data)` and fix formatting issues before presenting the report.
+
+## Provider Guidance
+
+- Use `TencentDataSource` for A-share and Hong Kong quote data when available.
+- Use `SinaDataSource` when US stocks are included or as a fallback quote provider.
+- Use `EastMoneyDataSource` for A-share quotes and optional sector benchmark support.
+- Prefer `DataSourceFactory` when chaining multiple providers.
 
 ## Configuration
 
@@ -33,6 +50,25 @@ News providers are optional. Supported API key sources:
 - Do not block the core report on missing news API keys, news provider failures, or empty news results.
 - Use `—` for unavailable market metrics such as Hong Kong or US volume ratio.
 - Include a brief investment-risk disclaimer when giving target or stop-loss style reference values.
+
+## Error Handling
+
+- Missing dependency: tell the user to install `requirements.txt`, or continue with formatting only if structured data is already available.
+- Missing or invalid quote data: return a short unavailable-data message instead of fabricating values.
+- Missing news API key, request failure, or empty news results: skip the news section.
+- Invalid stock code: ask for a market-qualified code or a recognizable A-share, Hong Kong, or US ticker.
+
+## File Map
+
+```text
+stocksight/
+├── SKILL.md
+├── core/          # types, config, data-source abstraction, detection
+├── formatter/     # standard/detailed report rendering and validation
+├── news/          # optional news provider abstraction and implementations
+├── providers/     # quote providers
+└── references/    # visual contract and examples
+```
 
 ## Development Notes
 
