@@ -5,7 +5,7 @@ description: Generate StockSight Markdown stock anomaly reports for A-share, Hon
 
 # StockSight
 
-Use this skill to produce StockSight stock anomaly reports from market data. Keep the workflow data-first: fetch quotes, detect signals, optionally add news, render Markdown, then validate the report before returning it.
+Use this skill to produce StockSight stock anomaly reports from market data. Keep the workflow data-first: fetch quotes, detect signals, optionally add news, render premium Markdown/HTML, then validate the report before returning it.
 
 ## Environment
 
@@ -46,6 +46,7 @@ News providers are optional. Supported API key sources:
 
 - Follow the visual and report structure in `references/visual-specs.md` when exact formatting matters.
 - Use `references/examples.md` for full standard, detailed, cross-market, and news-enabled examples.
+- Use lightweight GitHub-compatible HTML (`<kbd>` and `<details>`) for premium report polish.
 - Put a data source line at the end of every report.
 - Do not block the core report on missing news API keys, news provider failures, or empty news results.
 - Use `—` for unavailable market metrics such as Hong Kong or US volume ratio.

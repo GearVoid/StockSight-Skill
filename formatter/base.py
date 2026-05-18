@@ -4,7 +4,8 @@
 对标 VISUAL_SPECS.md Sections 2-5。
 """
 
-from typing import Dict, List, Optional
+from html import escape
+from typing import Dict, List, Optional, Sequence, Tuple
 
 
 # =============================================================================
@@ -201,6 +202,32 @@ def fmt_signal_level(level: int) -> str:
     names = {1: "关注", 2: "警告", 3: "危险"}
     name = names.get(level, "未知")
     return f"{symbol} {name}"
+
+
+def render_badge(text: str) -> str:
+    """渲染 GitHub Markdown 兼容的短标签"""
+    return f"<kbd>{escape(str(text))}</kbd>"
+
+
+def render_signal_bar(level: int, width: int = 5) -> str:
+    """渲染风险/异动强度条。
+
+    风险等级只有 0-3，但视觉条保留 5 格：关注=2格，警告=3格，危险=5格。
+    """
+    filled_by_level = {0: 0, 1: 2, 2: 3, 3: width}
+    filled = filled_by_level.get(level, min(max(level, 0), width))
+    return "▰" * filled + "▱" * (width - filled)
+
+
+def render_metric_strip(metrics: Sequence[Tuple[str, str]]) -> str:
+    """渲染顶部指标摘要条，最多 5 个指标。"""
+    if not metrics:
+        return ""
+    if len(metrics) > 5:
+        raise ValueError("指标摘要条最多支持5个指标")
+    headers = [render_badge(label) for label, _ in metrics]
+    values = [value for _, value in metrics]
+    return render_table(headers, [values], col_align=["center"] * len(metrics))
 
 
 # =============================================================================
