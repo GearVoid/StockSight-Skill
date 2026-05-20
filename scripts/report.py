@@ -27,6 +27,7 @@ from core import (  # noqa: E402
     StockData,
     TechnicalAnalysis,
     TechnicalSignal,
+    TrendSummary,
     analyze_technical_indicators,
     detect,
     normalize_quote_data,
@@ -278,6 +279,7 @@ def _technical_from_payload(payload: Optional[Dict[str, Any]]) -> Optional[Techn
             for item in payload.get("signals", [])
         ],
         notes=list(payload.get("notes", [])),
+        trend=_dataclass_from_dict(TrendSummary, payload.get("trend") or {}),
     )
 
 

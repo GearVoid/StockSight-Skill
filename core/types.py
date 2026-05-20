@@ -141,6 +141,37 @@ class TechnicalSignal:
     description: str
 
 
+
+@dataclass
+class TrendSummary:
+    """MACD/RSI 趋势摘要，用于描述指标排列和背离状态。
+
+    所有字段可能为空字符串，表示数据不足以做出判断。
+    """
+
+    macd_alignment: str = ""
+    """MACD 排列: "bullish" 多头, "bearish" 空头, "turning" 即将交叉, "" 不足"""
+
+    macd_alignment_desc: str = ""
+    """MACD 排列中文描述，如“多头排列：DIF > DEA，动能偏多”"""
+
+    macd_histogram_trend: str = ""
+    """MACD 柱趋势: "expanding" 扩张, "contracting" 收敛, "flat" 持平"""
+
+    rsi_trend: str = ""
+    """RSI 趋势: "overbought_pullback" 超买回落, "oversold_bounce" 超卖反弹,
+       "divergence_bearish" RSI 不确认新高, "uptrend" / "downtrend" / """""
+
+    rsi_trend_desc: str = ""
+    """RSI 趋势中文描述"""
+
+    divergence: str = ""
+    """价格与 MACD 背离: "bearish" 顶背离, "bullish" 底背离, "" 无背离"""
+
+    divergence_desc: str = ""
+    """背离中文描述，如“价格创新高但MACD未确认，顶背离风险”"""
+
+
 @dataclass
 class TechnicalAnalysis:
     """完整技术指标分析结果"""
@@ -149,6 +180,7 @@ class TechnicalAnalysis:
     rsi: RSIResult = field(default_factory=RSIResult)
     signals: List[TechnicalSignal] = field(default_factory=list)
     notes: List[str] = field(default_factory=list)
+    trend: TrendSummary = field(default_factory=TrendSummary)
 
 
 @dataclass
