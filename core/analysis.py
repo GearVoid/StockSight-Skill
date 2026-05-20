@@ -6,6 +6,8 @@ from __future__ import annotations
 from typing import List, Sequence
 
 from .types import (
+    BOLLResult,
+    KDJResult,
     MACDResult,
     RSIResult,
     RiskSignal,
@@ -14,6 +16,16 @@ from .types import (
     TechnicalSignal,
     TrendSummary,
 )
+
+
+DESC_BOLL_BREAK_UPPER = "BOLL 突破上轨：价格处于布林带上沿之外，短线过热风险上升。"
+DESC_BOLL_NEAR_UPPER = "BOLL 贴近上轨：价格接近布林带上沿，需观察追高风险。"
+DESC_BOLL_BREAK_LOWER = "BOLL 跌破下轨：价格处于布林带下沿之外，可能存在超跌修复需求。"
+DESC_BOLL_NEAR_LOWER = "BOLL 贴近下轨：价格接近布林带下沿，短线波动需观察。"
+DESC_KDJ_DEATH_CROSS = "KDJ 死叉：K 值下穿 D 值，短线动能转弱风险上升。"
+DESC_KDJ_GOLDEN_CROSS = "KDJ 金叉：K 值上穿 D 值，短线动能有修复迹象。"
+DESC_KDJ_OVERBOUGHT = "KDJ 超买：K/D 处于高位，需警惕短线回落风险。"
+DESC_KDJ_OVERSOLD = "KDJ 超卖：K/D 处于低位，可能出现修复需求。"
 
 
 def _ema(values: Sequence[float], period: int) -> List[float]:
@@ -99,6 +111,72 @@ def _rsi_from_averages(avg_gain: float, avg_loss: float) -> float:
     return 100.0 - (100.0 / (1.0 + rs))
 
 
+def compute_boll(history: StockHistory, period: int = 20, width: float = 2.0) -> BOLLResult:
+    """Calculate BOLL bands from closing prices."""
+    if history is None or not history.bars or len(history.bars) < period:
+        return BOLLResult(period=period)
+
+    closes = [bar.close for bar in history.bars]
+    dates = [bar.date for bar in history.bars]
+    upper = [0.0] * len(closes)
+    middle = [0.0] * len(closes)
+    lower = [0.0] * len(closes)
+
+    for index in range(period - 1, len(closes)):
+        window = closes[index - period + 1:index + 1]
+        mean = sum(window) / period
+        variance = sum((value - mean) ** 2 for value in window) / period
+        std = variance ** 0.5
+        middle[index] = mean
+        upper[index] = mean + width * std
+        lower[index] = mean - width * std
+
+    return BOLLResult(
+        upper=[round(value, 4) for value in upper],
+        middle=[round(value, 4) for value in middle],
+        lower=[round(value, 4) for value in lower],
+        dates=dates,
+        period=period,
+    )
+
+
+def compute_kdj(history: StockHistory, period: int = 9) -> KDJResult:
+    """Calculate KDJ with the common 9-day RSV and 1/3 smoothing."""
+    if history is None or not history.bars or len(history.bars) < period:
+        return KDJResult(period=period)
+
+    bars = history.bars
+    dates = [bar.date for bar in bars]
+    k_values = [0.0] * len(bars)
+    d_values = [0.0] * len(bars)
+    j_values = [0.0] * len(bars)
+    prev_k = 50.0
+    prev_d = 50.0
+
+    for index in range(period - 1, len(bars)):
+        window = bars[index - period + 1:index + 1]
+        low_n = min(bar.low for bar in window)
+        high_n = max(bar.high for bar in window)
+        close = bars[index].close
+        rsv = 50.0 if high_n == low_n else (close - low_n) / (high_n - low_n) * 100
+        k = prev_k * 2 / 3 + rsv / 3
+        d = prev_d * 2 / 3 + k / 3
+        j = 3 * k - 2 * d
+        k_values[index] = k
+        d_values[index] = d
+        j_values[index] = j
+        prev_k = k
+        prev_d = d
+
+    return KDJResult(
+        k=[round(value, 2) for value in k_values],
+        d=[round(value, 2) for value in d_values],
+        j=[round(value, 2) for value in j_values],
+        dates=dates,
+        period=period,
+    )
+
+
 def detect_macd_signals(macd_result: MACDResult, lookback: int = 3) -> List[TechnicalSignal]:
     """Detect recent MACD golden/death crosses."""
     if not macd_result or len(macd_result.dif) < 3:
@@ -156,10 +234,83 @@ def detect_rsi_signals(rsi_result: RSIResult) -> List[TechnicalSignal]:
     return []
 
 
+def detect_boll_signals(boll_result: BOLLResult, history: StockHistory) -> List[TechnicalSignal]:
+    """Detect price interaction with the latest BOLL bands."""
+    latest = boll_result.latest if boll_result else None
+    if latest is None or not boll_result.dates or not history or not history.bars:
+        return []
+
+    upper, middle, lower = latest
+    if upper == 0.0 or middle == 0.0 or lower == 0.0:
+        return []
+
+    close = history.bars[-1].close
+    latest_date = boll_result.dates[-1]
+    band_width = max(upper - lower, 0.0001)
+    position = (close - lower) / band_width
+
+    if close > upper:
+        return [_technical_signal("BOLL", "break_upper", 2, "bearish", latest_date, position, DESC_BOLL_BREAK_UPPER)]
+    if close >= upper - band_width * 0.08:
+        return [_technical_signal("BOLL", "near_upper", 1, "bearish", latest_date, position, DESC_BOLL_NEAR_UPPER)]
+    if close < lower:
+        return [_technical_signal("BOLL", "break_lower", 1, "bullish", latest_date, position, DESC_BOLL_BREAK_LOWER)]
+    if close <= lower + band_width * 0.08:
+        return [_technical_signal("BOLL", "near_lower", 1, "bullish", latest_date, position, DESC_BOLL_NEAR_LOWER)]
+    return []
+
+
+def detect_kdj_signals(kdj_result: KDJResult, lookback: int = 3) -> List[TechnicalSignal]:
+    """Detect KDJ cross and high/low zone signals."""
+    latest = kdj_result.latest if kdj_result else None
+    if latest is None or len(kdj_result.k) < 2 or not kdj_result.dates:
+        return []
+
+    k_values = kdj_result.k
+    d_values = kdj_result.d
+    dates = kdj_result.dates
+    signals: List[TechnicalSignal] = []
+    start = max(1, len(k_values) - max(1, lookback))
+
+    for index in range(start, len(k_values)):
+        if not k_values[index] or not d_values[index] or not k_values[index - 1] or not d_values[index - 1]:
+            continue
+        if k_values[index - 1] >= d_values[index - 1] and k_values[index] < d_values[index]:
+            signals.append(_technical_signal(
+                "KDJ", "death_cross", 2, "bearish", dates[index],
+                k_values[index] - d_values[index], DESC_KDJ_DEATH_CROSS,
+            ))
+        elif k_values[index - 1] <= d_values[index - 1] and k_values[index] > d_values[index]:
+            signals.append(_technical_signal(
+                "KDJ", "golden_cross", 0, "bullish", dates[index],
+                k_values[index] - d_values[index], DESC_KDJ_GOLDEN_CROSS,
+            ))
+
+    latest_k, latest_d, latest_j = latest
+    latest_date = dates[-1]
+    if latest_k >= 80 and latest_d >= 75:
+        signals.append(_technical_signal("KDJ", "overbought", 2, "bearish", latest_date, latest_j, DESC_KDJ_OVERBOUGHT))
+    elif latest_k <= 20 and latest_d <= 25:
+        signals.append(_technical_signal("KDJ", "oversold", 1, "bullish", latest_date, latest_j, DESC_KDJ_OVERSOLD))
+    return signals[-3:]
+
+
 def _rsi_signal(date: str, value: float, level: int, signal_type: str, description: str) -> TechnicalSignal:
     direction = "bullish" if "oversold" in signal_type else "bearish"
+    return _technical_signal("RSI", signal_type, level, direction, date, value, description)
+
+
+def _technical_signal(
+    indicator: str,
+    signal_type: str,
+    level: int,
+    direction: str,
+    date: str,
+    value: float,
+    description: str,
+) -> TechnicalSignal:
     return TechnicalSignal(
-        indicator="RSI",
+        indicator=indicator,
         signal_type=signal_type,
         level=level,
         direction=direction,
@@ -383,18 +534,29 @@ def _build_trend_summary(macd_result: MACDResult, rsi_result: RSIResult, history
 # ---------------------------------------------------------------------------
 
 def analyze_technical_indicators(history: StockHistory) -> TechnicalAnalysis:
-    """Compute MACD/RSI, trend summary, and technical signals."""
+    """Compute technical indicators, trend summary, and technical signals."""
     if history is None or not history.bars:
-        return TechnicalAnalysis(notes=["\u5386\u53f2\u6570\u636e\u4e0d\u8db3\uff0c\u65e0\u6cd5\u8ba1\u7b97 MACD/RSI\u3002"])
+        return TechnicalAnalysis(notes=["历史数据不足，无法计算 MACD/RSI/BOLL/KDJ。"])
 
     macd = compute_macd(history)
     rsi = compute_rsi(history)
-    signals = detect_macd_signals(macd, lookback=5) + detect_rsi_signals(rsi)
+    boll = compute_boll(history)
+    kdj = compute_kdj(history)
+    signals = (
+        detect_macd_signals(macd, lookback=5)
+        + detect_rsi_signals(rsi)
+        + detect_boll_signals(boll, history)
+        + detect_kdj_signals(kdj, lookback=5)
+    )
     notes: List[str] = []
     if not macd.dates:
-        notes.append("MACD \u5386\u53f2\u6570\u636e\u4e0d\u8db3\u3002")
+        notes.append("MACD 历史数据不足。")
     if rsi.latest is None:
-        notes.append("RSI \u5386\u53f2\u6570\u636e\u4e0d\u8db3\u3002")
+        notes.append("RSI 历史数据不足。")
+    if boll.latest is None:
+        notes.append("BOLL 历史数据不足。")
+    if kdj.latest is None:
+        notes.append("KDJ 历史数据不足。")
 
     trend = _build_trend_summary(macd, rsi, history)
     if trend.divergence:
@@ -408,7 +570,7 @@ def analyze_technical_indicators(history: StockHistory) -> TechnicalAnalysis:
             description=trend.divergence_desc,
         ))
 
-    return TechnicalAnalysis(macd=macd, rsi=rsi, signals=signals, notes=notes, trend=trend)
+    return TechnicalAnalysis(macd=macd, rsi=rsi, boll=boll, kdj=kdj, signals=signals, notes=notes, trend=trend)
 
 
 def technical_risk_signals(analysis: TechnicalAnalysis, stock_code: str) -> List[RiskSignal]:
@@ -417,7 +579,7 @@ def technical_risk_signals(analysis: TechnicalAnalysis, stock_code: str) -> List
         return []
     signals: List[RiskSignal] = []
     for item in analysis.signals:
-        if item.level <= 0:
+        if item.level <= 0 or item.direction == "bullish":
             continue
         signals.append(RiskSignal(
             stock_code=stock_code,

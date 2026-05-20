@@ -18,7 +18,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from core import (  # noqa: E402
+    BOLLResult,
     DataSourceError,
+    KDJResult,
     MACDResult,
     NewsItem,
     RSIResult,
@@ -274,6 +276,8 @@ def _technical_from_payload(payload: Optional[Dict[str, Any]]) -> Optional[Techn
     return TechnicalAnalysis(
         macd=_dataclass_from_dict(MACDResult, payload.get("macd") or {}),
         rsi=_dataclass_from_dict(RSIResult, payload.get("rsi") or {}),
+        boll=_dataclass_from_dict(BOLLResult, payload.get("boll") or {}),
+        kdj=_dataclass_from_dict(KDJResult, payload.get("kdj") or {}),
         signals=[
             _dataclass_from_dict(TechnicalSignal, item)
             for item in payload.get("signals", [])

@@ -1,13 +1,14 @@
 ﻿# -*- coding: utf-8 -*-
 import unittest
 
-from core import MACDResult, RSIResult, TechnicalAnalysis, TechnicalSignal
+from core import BOLLResult, KDJResult, MACDResult, RSIResult, RiskSignal, TechnicalAnalysis, TechnicalSignal
 from formatter import (
     render_detailed_report,
     render_html_report,
     render_standard_report,
     validate_report,
 )
+from formatter.html_utils import _calculate_risk_score
 
 from tests.fixtures import sample_report
 
@@ -70,6 +71,20 @@ class FormatterTests(unittest.TestCase):
                 dates=["2026-01-01", "2026-01-02", "2026-01-03"],
                 period=14,
             ),
+            boll=BOLLResult(
+                upper=[0.0, 110.0, 112.0],
+                middle=[0.0, 100.0, 101.0],
+                lower=[0.0, 90.0, 91.0],
+                dates=["2026-01-01", "2026-01-02", "2026-01-03"],
+                period=20,
+            ),
+            kdj=KDJResult(
+                k=[0.0, 76.0, 82.0],
+                d=[0.0, 72.0, 78.0],
+                j=[0.0, 84.0, 90.0],
+                dates=["2026-01-01", "2026-01-02", "2026-01-03"],
+                period=9,
+            ),
             signals=[
                 TechnicalSignal(
                     indicator="RSI",
@@ -89,9 +104,41 @@ class FormatterTests(unittest.TestCase):
 
         self.assertIn("技术指标辅助", markdown)
         self.assertIn("RSI14", markdown)
+        self.assertIn("BOLL20", markdown)
+        self.assertIn("KDJ9", markdown)
         self.assertIn("RSI技术信号", html)
+        self.assertIn("BOLL20", html)
+        self.assertIn("KDJ9", html)
         self.assertIn("technical-grid", html)
         self.assertIn("rsi-track", html)
+
+    def test_technical_only_risk_score_is_capped(self):
+        signals = [
+            RiskSignal("AAPL", "RSI技术信号", 2, 72.1, "", "RSI overbought"),
+            RiskSignal("AAPL", "MACD技术信号", 1, 0.0, "", "MACD helper"),
+        ]
+
+        self.assertLessEqual(_calculate_risk_score(signals), 60)
+
+    def test_duplicate_technical_signals_have_diminishing_score(self):
+        signals = [
+            RiskSignal("AAPL", "RSI技术信号", 2, 72.1, "", "RSI overbought"),
+            RiskSignal("AAPL", "KDJ技术信号", 2, 0.0, "", "KDJ death cross"),
+            RiskSignal("AAPL", "KDJ技术信号", 2, 82.1, "", "KDJ overbought"),
+        ]
+
+        self.assertLess(_calculate_risk_score(signals), 60)
+
+    def test_market_risks_can_score_higher_than_technical_only(self):
+        technical = [RiskSignal("AAPL", "RSI技术信号", 2, 72.1, "", "RSI overbought")]
+        market = [
+            RiskSignal("TEST", "价格异动", 3, 9.8, "%", "price limit"),
+            RiskSignal("TEST", "量比偏离", 3, 4.5, "x", "volume spike"),
+            RiskSignal("TEST", "换手率异常", 2, 18.0, "%", "turnover spike"),
+        ]
+
+        self.assertGreater(_calculate_risk_score(market), _calculate_risk_score(technical))
+        self.assertGreaterEqual(_calculate_risk_score(market), 80)
 
 
 if __name__ == "__main__":

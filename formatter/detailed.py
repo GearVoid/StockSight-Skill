@@ -134,7 +134,7 @@ def _combined_signals(data: ReportData, stock: StockData, signals: List[RiskSign
 def _render_technical_section(data: ReportData) -> str:
     technical = data.technical
     if technical is None:
-        return "## 📈 技术指标辅助\n\n历史数据不足，暂无法计算 MACD / RSI。"
+        return "## 📈 技术指标辅助\n\n历史数据不足，暂无法计算 MACD / RSI / BOLL / KDJ。"
 
     macd_status = "数据不足"
     if technical.macd and technical.macd.dates:
@@ -153,6 +153,35 @@ def _render_technical_section(data: ReportData) -> str:
         rsi_status = f"{rsi_value:.2f}（超卖区）"
     else:
         rsi_status = f"{rsi_value:.2f}（中性区）"
+
+    boll_status = "数据不足"
+    if technical.boll and technical.boll.latest:
+        upper, middle, lower = technical.boll.latest
+        price = data.stocks[0].current_price if data.stocks else 0.0
+        if price > upper:
+            zone = "突破上轨"
+        elif price < lower:
+            zone = "跌破下轨"
+        elif price >= upper - (upper - lower) * 0.08:
+            zone = "贴近上轨"
+        elif price <= lower + (upper - lower) * 0.08:
+            zone = "贴近下轨"
+        else:
+            zone = "轨道内"
+        boll_status = f"{zone}（上 {upper:.2f} / 中 {middle:.2f} / 下 {lower:.2f}）"
+
+    kdj_status = "数据不足"
+    if technical.kdj and technical.kdj.latest:
+        k, d, j = technical.kdj.latest
+        if k >= 80 and d >= 75:
+            zone = "超买区"
+        elif k <= 20 and d <= 25:
+            zone = "超卖区"
+        elif k > d:
+            zone = "偏多"
+        else:
+            zone = "偏弱"
+        kdj_status = f"{zone}（K {k:.2f} / D {d:.2f} / J {j:.2f}）"
 
     signal_text = "暂无明显技术指标信号"
     if technical.signals:
@@ -179,6 +208,8 @@ def _render_technical_section(data: ReportData) -> str:
         [
             ["MACD", macd_status],
             [f"RSI{technical.rsi.period if technical.rsi else 14}", rsi_status],
+            [f"BOLL{technical.boll.period if technical.boll else 20}", boll_status],
+            [f"KDJ{technical.kdj.period if technical.kdj else 9}", kdj_status],
             ["近期信号", signal_text],
         ],
     ))

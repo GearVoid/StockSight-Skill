@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from .types import (
     HistoryBar,
+    BOLLResult,
+    KDJResult,
     MACDResult,
     NewsItem,
     RSIResult,
@@ -17,8 +19,12 @@ from .detector import detect, detect_anomalies, DetectorThresholds
 from .quality import assess_quote_quality, normalize_quote_data
 from .analysis import (
     analyze_technical_indicators,
+    compute_boll,
+    compute_kdj,
     compute_macd,
     compute_rsi,
+    detect_boll_signals,
+    detect_kdj_signals,
     detect_macd_signals,
     detect_rsi_signals,
     technical_risk_signals,
@@ -28,6 +34,8 @@ from .market import detect_market, detect_tencent_prefix, detect_sina_prefix, to
 __all__ = [
     "NewsItem",
     "HistoryBar",
+    "BOLLResult",
+    "KDJResult",
     "MACDResult",
     "RSIResult",
     "StockHistory",
@@ -51,8 +59,12 @@ __all__ = [
     "detect_sina_prefix",
     "to_eastmoney_secid",
     "analyze_technical_indicators",
+    "compute_boll",
+    "compute_kdj",
     "compute_macd",
     "compute_rsi",
+    "detect_boll_signals",
+    "detect_kdj_signals",
     "detect_macd_signals",
     "detect_rsi_signals",
     "technical_risk_signals",

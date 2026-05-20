@@ -352,7 +352,7 @@ def data_credibility_rows(stock: StockData, technical: object = None) -> List[Tu
         ("成交活跃度", "可确认" if stock.volume >= 0 and stock.amount >= 0 else "不可用", "数据源字段", "成交量/成交额"),
         ("量比", volume_ratio_status, volume_ratio_source, "不可用时不触发量比风险"),
         ("换手率", turnover_status, turnover_source, "不可用或异常时不纳入风险判断"),
-        ("MACD/RSI", technical_status, technical_source, "仅作技术辅助判断"),
+        ("MACD/RSI/BOLL/KDJ", technical_status, technical_source, "仅作技术辅助判断"),
     ]
     return rows
 
@@ -510,7 +510,7 @@ def final_judgment(stock: StockData, signals: Sequence[object], technical: objec
         else:
             confirmation = "确认后续成交额、振幅和收盘位置是否继续支持该信号。"
     else:
-        confirmation = "继续观察成交量、价格区间和 MACD/RSI 是否同步转强或转弱。"
+        confirmation = "继续观察成交量、价格区间和 MACD/RSI/BOLL/KDJ 是否同步转强或转弱。"
 
     confidence = credibility_level(stock, technical)
     return stance, tone, main_risk, f"{confirmation} 当前数据可信度：{confidence}。"

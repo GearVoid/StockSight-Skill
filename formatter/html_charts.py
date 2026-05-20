@@ -635,7 +635,7 @@ def _technical_indicators_html(technical) -> str:
         return (
             '<section class="panel" id="technical">'
             "<h2>技术指标</h2>"
-            '<div class="empty-state">历史数据不足，暂无法计算 MACD / RSI。</div>'
+            '<div class="empty-state">历史数据不足，暂无法计算 MACD / RSI / BOLL / KDJ。</div>'
             "</section>"
         )
 
@@ -645,6 +645,8 @@ def _technical_indicators_html(technical) -> str:
         '<div class="technical-grid">'
         + _macd_chart_inner_html(technical.macd)
         + _rsi_panel_html(technical.rsi)
+        + _boll_panel_html(technical.boll)
+        + _kdj_panel_html(technical.kdj)
         + "</div>"
         + _technical_trend_summary_html(technical)
         + _technical_signal_summary_html(technical)
@@ -863,6 +865,76 @@ def _rsi_panel_html(rsi_result) -> str:
     )
 
 
+def _boll_panel_html(boll_result) -> str:
+    latest = boll_result.latest if boll_result else None
+    if latest is None:
+        return (
+            '<div class="rsi-panel">'
+            "<h3>BOLL</h3>"
+            '<div class="empty-state">BOLL 数据不足。</div>'
+            "</div>"
+        )
+
+    upper, middle, lower = latest
+    width = upper - lower
+    if width <= 0:
+        pos = 50.0
+    else:
+        pos = max(0, min(100, (middle - lower) / width * 100))
+
+    return (
+        '<div class="rsi-panel neutral">'
+        f"<h3>BOLL{boll_result.period}</h3>"
+        f"<strong>{middle:.2f}</strong>"
+        f"<p>中轨 · 上 {upper:.2f} / 下 {lower:.2f}</p>"
+        '<div class="rsi-track">'
+        '<span class="rsi-zone low"></span><span class="rsi-zone mid"></span><span class="rsi-zone high"></span>'
+        f'<i style="left:{pos:.2f}%"></i>'
+        "</div>"
+        '<div class="rsi-labels"><span>下轨</span><span>中轨</span><span>上轨</span></div>'
+        "</div>"
+    )
+
+
+def _kdj_panel_html(kdj_result) -> str:
+    latest = kdj_result.latest if kdj_result else None
+    if latest is None:
+        return (
+            '<div class="rsi-panel">'
+            "<h3>KDJ</h3>"
+            '<div class="empty-state">KDJ 数据不足。</div>'
+            "</div>"
+        )
+
+    k, d, j = latest
+    if k >= 80 and d >= 75:
+        tone = "bearish"
+        zone = "超买区"
+    elif k <= 20 and d <= 25:
+        tone = "watch"
+        zone = "超卖区"
+    elif k > d:
+        tone = "neutral"
+        zone = "偏多"
+    else:
+        tone = "watch"
+        zone = "偏弱"
+    pos = max(0, min(100, k))
+
+    return (
+        f'<div class="rsi-panel {tone}">'
+        f"<h3>KDJ{kdj_result.period}</h3>"
+        f"<strong>{k:.2f}</strong>"
+        f"<p>{_html(zone)} · D {d:.2f} / J {j:.2f}</p>"
+        '<div class="rsi-track">'
+        '<span class="rsi-zone low"></span><span class="rsi-zone mid"></span><span class="rsi-zone high"></span>'
+        f'<i style="left:{pos:.2f}%"></i>'
+        "</div>"
+        '<div class="rsi-labels"><span>0</span><span>20</span><span>80</span><span>100</span></div>'
+        "</div>"
+    )
+
+
 
 def _technical_trend_summary_html(technical) -> str:
     """Render trend summary cards for MACD alignment, RSI trend, and divergence."""
@@ -963,7 +1035,7 @@ def _technical_trend_summary_html(technical) -> str:
 
 def _technical_signal_summary_html(technical) -> str:
     if not technical.signals:
-        notes = "；".join(technical.notes) if technical.notes else "近期未检测到 MACD / RSI 技术信号。"
+        notes = "；".join(technical.notes) if technical.notes else "近期未检测到 MACD / RSI / BOLL / KDJ 技术信号。"
         return f'<p class="muted">{_html(notes)}</p>'
 
     cards = []
