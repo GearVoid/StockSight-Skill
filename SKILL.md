@@ -1,11 +1,11 @@
 ---
 name: stocksight
-description: Agent-ready stock anomaly analyst for A-share, Hong Kong, and US equities. Use when Codex needs to fetch quotes, clean suspicious market fields, detect unusual volume/turnover/return/MACD/RSI signals, explain data credibility, add optional news context, render premium Markdown/HTML stock reports, replay deterministic snapshots, or validate StockSight report formatting.
+description: Agent-ready stock anomaly analyst for A-share, Hong Kong, and US equities. Use when Codex needs to fetch quotes, clean suspicious market fields, detect unusual volume/turnover/return/MACD/RSI/BOLL/KDJ signals, explain data credibility, add optional news context, render premium Markdown/HTML stock reports, replay deterministic snapshots, or validate StockSight report formatting.
 ---
 
 # StockSight
 
-Use this skill to produce StockSight stock anomaly reports from market data. Keep the workflow data-first: fetch quotes, clean fields, detect signals, optionally add MACD/RSI technical analysis for detailed A-share or US reports, optionally add news, render Markdown or self-contained HTML, then validate Markdown before returning it.
+Use this skill to produce StockSight stock anomaly reports from market data. Keep the workflow data-first: fetch quotes, clean fields, detect signals, optionally add MACD/RSI/BOLL/KDJ technical analysis for detailed A-share or US reports, optionally add news, render Markdown or self-contained HTML, then validate Markdown before returning it.
 
 ## Environment
 
@@ -22,7 +22,7 @@ If dependency installation is unavailable, still use this skill for report forma
 1. Build one or more `StockData` records from provider data.
 2. Run `normalize_quote_data(stocks)` before detection.
 3. Run `detect(stocks)` or `detect_anomalies(stocks)` to produce `RiskSignal` entries.
-4. For detailed single-stock A-share or US reports, compute MACD/RSI with `analyze_technical_indicators(history)` and set `ReportData.technical`.
+4. For detailed single-stock A-share or US reports, compute MACD/RSI/BOLL/KDJ with `analyze_technical_indicators(history)` and set `ReportData.technical`.
 5. Optionally search news only when an API key is configured. If news lookup fails or returns no results, skip the news section and continue.
 6. Create `ReportData` with title, summary, stocks, signals, data source, timestamp, optional `news`, and optional `technical`.
 7. Render Markdown with `render_standard_report(data)` for multi-stock reports, or `render_detailed_report(data)` for single-stock deep dives.
@@ -42,7 +42,7 @@ python scripts/report.py 002346 --provider tencent --mode detailed --save-snapsh
 python scripts/report.py --from-snapshot snapshots/002346.json --html --out reports/002346-replay.html --markdown-out outputs/002346-replay.md
 ```
 
-When rendering from `--from-snapshot`, do not fetch live quotes, re-run news search, re-detect signals, or recompute MACD/RSI. The snapshot is the source of truth.
+When rendering from `--from-snapshot`, do not fetch live quotes, re-run news search, re-detect signals, or recompute MACD/RSI/BOLL/KDJ. The snapshot is the source of truth.
 
 If the user needs PDF, generate HTML first and let the user export it from their own browser or system PDF tools.
 
@@ -75,7 +75,7 @@ News providers are optional. Supported API key sources:
 - In detailed reports, include the generated final judgment and data credibility sections; do not invent a separate conclusion outside the rendered report.
 - Keep the generated report context visible near the top: quote timestamp, historical indicator cutoff date, and whether the output was rendered from a snapshot.
 - Show data-quality notes when a metric is unavailable or clearly outside normal bounds.
-- Treat MACD/RSI as technical references. Bearish technical signals may raise risk, but bullish signals do not lower existing risk.
+- Treat MACD/RSI/BOLL/KDJ as technical references. Bearish technical signals may raise risk, but bullish signals do not lower existing risk.
 - Include a brief investment-risk disclaimer when giving target or stop-loss style reference values.
 
 ## Error Handling

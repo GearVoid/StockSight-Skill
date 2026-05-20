@@ -129,6 +129,52 @@ class RSIResult:
 
 
 @dataclass
+class BOLLResult:
+    """BOLL 布林带指标结果"""
+
+    upper: List[float] = field(default_factory=list)
+    """上轨"""
+    middle: List[float] = field(default_factory=list)
+    """中轨"""
+    lower: List[float] = field(default_factory=list)
+    """下轨"""
+    dates: List[str] = field(default_factory=list)
+    """对应日期"""
+    period: int = 20
+    """周期"""
+
+    @property
+    def latest(self) -> Optional[tuple]:
+        """最新可用的 (upper, middle, lower)。"""
+        if not self.upper or not self.middle or not self.lower:
+            return None
+        return (self.upper[-1], self.middle[-1], self.lower[-1])
+
+
+@dataclass
+class KDJResult:
+    """KDJ 指标结果"""
+
+    k: List[float] = field(default_factory=list)
+    """K 值"""
+    d: List[float] = field(default_factory=list)
+    """D 值"""
+    j: List[float] = field(default_factory=list)
+    """J 值"""
+    dates: List[str] = field(default_factory=list)
+    """对应日期"""
+    period: int = 9
+    """RSV 周期"""
+
+    @property
+    def latest(self) -> Optional[tuple]:
+        """最新可用的 (K, D, J)。"""
+        if not self.k or not self.d or not self.j:
+            return None
+        return (self.k[-1], self.d[-1], self.j[-1])
+
+
+@dataclass
 class TechnicalSignal:
     """技术指标信号，用于辅助判断和转换为风险信号"""
 
@@ -178,6 +224,8 @@ class TechnicalAnalysis:
 
     macd: MACDResult = field(default_factory=MACDResult)
     rsi: RSIResult = field(default_factory=RSIResult)
+    boll: BOLLResult = field(default_factory=BOLLResult)
+    kdj: KDJResult = field(default_factory=KDJResult)
     signals: List[TechnicalSignal] = field(default_factory=list)
     notes: List[str] = field(default_factory=list)
     trend: TrendSummary = field(default_factory=TrendSummary)

@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 import unittest
 
-from core import HistoryBar, MACDResult, StockHistory
+from core import HistoryBar, MACDResult, StockHistory, TechnicalAnalysis, TechnicalSignal
 from core.analysis import (
     analyze_technical_indicators,
     compute_macd,
+    compute_boll,
+    compute_kdj,
     compute_rsi,
+    detect_boll_signals,
+    detect_kdj_signals,
     detect_macd_signals,
     detect_rsi_signals,
     technical_risk_signals,
@@ -72,6 +76,24 @@ class TechnicalAnalysisTests(unittest.TestCase):
         self.assertEqual(oversold_signals[0].level, 2)
         self.assertEqual(oversold_signals[0].signal_type, "oversold_extreme")
 
+    def test_boll_detects_upper_band_risk(self):
+        closes = [100.0] * 25 + [130.0]
+        history = history_from_closes(closes)
+        boll = compute_boll(history)
+        signals = detect_boll_signals(boll, history)
+
+        self.assertTrue(signals)
+        self.assertEqual(signals[0].indicator, "BOLL")
+        self.assertEqual(signals[0].direction, "bearish")
+
+    def test_kdj_detects_overbought_state(self):
+        history = history_from_closes([100 + index * 2 for index in range(35)])
+        kdj = compute_kdj(history)
+        signals = detect_kdj_signals(kdj, lookback=5)
+
+        self.assertTrue(any(signal.indicator == "KDJ" for signal in signals))
+        self.assertTrue(any(signal.direction == "bearish" for signal in signals))
+
     def test_analyze_handles_insufficient_history(self):
         analysis = analyze_technical_indicators(history_from_closes([1, 2, 3]))
         self.assertEqual(analysis.macd.dates, [])
@@ -79,10 +101,40 @@ class TechnicalAnalysisTests(unittest.TestCase):
         self.assertTrue(analysis.notes)
 
     def test_technical_risk_signals_keeps_bullish_auxiliary_out_of_risk(self):
-        analysis = analyze_technical_indicators(history_from_closes([100 + index for index in range(35)]))
+        analysis = TechnicalAnalysis(signals=[
+            TechnicalSignal(
+                indicator="MACD",
+                signal_type="golden_cross",
+                level=0,
+                direction="bullish",
+                date="2026-01-01",
+                value=0.1,
+                description="bullish helper",
+            ),
+            TechnicalSignal(
+                indicator="MACD",
+                signal_type="bullish_divergence",
+                level=1,
+                direction="bullish",
+                date="2026-01-02",
+                value=0.0,
+                description="bullish divergence",
+            ),
+            TechnicalSignal(
+                indicator="MACD",
+                signal_type="death_cross",
+                level=2,
+                direction="bearish",
+                date="2026-01-03",
+                value=-0.1,
+                description="bearish risk",
+            ),
+        ])
         risks = technical_risk_signals(analysis, "TEST")
-        self.assertTrue(risks)
+        self.assertEqual(len(risks), 1)
         self.assertTrue(all(signal.stock_code == "TEST" for signal in risks))
+        self.assertEqual(risks[0].risk_type, "MACD技术信号")
+        self.assertEqual(risks[0].description, "bearish risk")
 
     # ---- Trend summary tests ----
 

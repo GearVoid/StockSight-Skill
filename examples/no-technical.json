@@ -5,7 +5,7 @@
   "provider": "example-no-technical",
   "failed_codes": [],
   "quality_notes": [
-    "历史行情不可用，MACD/RSI 未计算。"
+    "历史行情不可用，MACD/RSI/BOLL/KDJ 未计算。"
   ],
   "report": {
     "title": "无技术指标样例",

@@ -21,6 +21,8 @@ TYPE_COLORS = [
     "#c2412d",
     "#6b46c1",
     "#0f766e",
+    "#be185d",
+    "#0891b2",
 ]
 
 HEADER_GRADIENTS = {
@@ -119,13 +121,62 @@ def _level_pie_gradient(counts: Dict[int, int]) -> str:
 
 def _calculate_risk_score(signals: Sequence[RiskSignal]) -> int:
     if not signals:
+        return 12
+
+    score = 15
+    has_market_signal = False
+    technical_only = True
+    grouped: Dict[str, List[RiskSignal]] = {}
+    for signal in signals:
+        grouped.setdefault(signal.risk_type, []).append(signal)
+        if not _is_technical_signal(signal.risk_type):
+            technical_only = False
+        if _is_market_signal(signal.risk_type):
+            has_market_signal = True
+
+    for risk_type, items in grouped.items():
+        weight = _signal_weight(risk_type)
+        levels = sorted((max(0, min(item.level, 3)) for item in items), reverse=True)
+        if not levels:
+            continue
+        score += weight * levels[0]
+        for level in levels[1:]:
+            score += weight * level * 0.25
+
+    if len(grouped) >= 3:
+        score += min((len(grouped) - 2) * 3, 6)
+    if has_market_signal and any(signal.level >= 3 for signal in signals):
+        score += 5
+
+    cap = 60 if technical_only else 98
+    return max(12, min(int(round(score)), cap))
+
+
+def _is_technical_signal(risk_type: str) -> bool:
+    return any(name in risk_type for name in ("MACD", "RSI", "BOLL", "KDJ"))
+
+
+def _is_market_signal(risk_type: str) -> bool:
+    keywords = ("价格", "涨跌", "量比", "换手", "成交", "振幅", "波动")
+    return any(keyword in risk_type for keyword in keywords)
+
+
+def _signal_weight(risk_type: str) -> int:
+    if "价格" in risk_type or "涨跌" in risk_type:
+        return 18
+    if "量比" in risk_type or "换手" in risk_type:
+        return 14
+    if "成交" in risk_type or "振幅" in risk_type or "波动" in risk_type:
         return 10
-    level_scores = {0: 10, 1: 35, 2: 65, 3: 85}
-    max_level = max((s.level for s in signals), default=0)
-    base_score = level_scores.get(max_level, 10)
-    if len(signals) > 1:
-        base_score = min(base_score + len(signals) * 5, 98)
-    return base_score
+    if "MACD" in risk_type:
+        return 11
+    if "BOLL" in risk_type:
+        return 10
+    if "KDJ" in risk_type:
+        return 9
+    if "RSI" in risk_type:
+        return 8
+    return 9
 
 
 def _get_risk_status(score: int) -> Tuple[str, str, str]:

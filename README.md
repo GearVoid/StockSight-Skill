@@ -1,6 +1,6 @@
 ﻿# StockSight-Skill
 
-[![Version](https://img.shields.io/badge/version-v0.1.2-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.1.2)
+[![Version](https://img.shields.io/badge/version-v0.2.0-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.2.0)
 [![Python](https://img.shields.io/badge/python-3.9%2B-2563eb)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
 [![Skill Ready](https://img.shields.io/badge/Codex%20Skill-ready-f97316)](SKILL.md)
@@ -11,11 +11,11 @@ StockSight-Skill 不是“再写一个行情脚本”。它更像一个小型盘
 
 > Feed it a ticker. It returns a market brief your agent can actually hand to a human.
 
-![TSLA report overview](docs/images/tsla-report-overview.png)
+![StockSight report overview](docs/images/stocksight-report-overview.png)
 
-![TSLA risk dashboard and radar](docs/images/tsla-report-risk-gauge.png)
+![StockSight risk dashboard and radar](docs/images/stocksight-report-risk-gauge.png)
 
-![TSLA report data quality and tables](docs/images/tsla-report-radar.png)
+![StockSight technical and data panels](docs/images/stocksight-report-technical.png)
 
 ## 亮点
 
@@ -26,7 +26,7 @@ StockSight-Skill 不是“再写一个行情脚本”。它更像一个小型盘
 - **最终判断区**：详细报告会给出核心结论、主要风险和下一步确认点，让 agent 输出更像分析员而不是表格搬运工。
 - **报告口径锁定**：顶部明确行情时间、历史指标截止日期、是否使用 snapshot，减少跨 agent 输出漂移。
 - **双输出**：Markdown 适合 agent 直接回复，HTML 适合正式报告和分享。
-- **轻量可视化**：风险仪表盘、信号雷达、MACD/RSI、风险分布、信号构成、数据完整性与可信度面板。
+- **轻量可视化**：风险仪表盘、信号雷达、MACD/RSI/BOLL/KDJ、风险分布、信号构成、数据完整性与可信度面板。
 - **可选资讯聚合**：配置 Tavily 或 SerpAPI 后补充公告、财报、异动新闻。
 - **可复现快照**：用 snapshot 固定行情、信号、资讯和质量提示，减少不同 agent 之间的自由发挥。
 - **最小测试套件**：覆盖 formatter、validator、质量清洗、市场识别、Yahoo provider、snapshot 回放。
@@ -134,7 +134,7 @@ python scripts/render_examples.py
 1. 获取行情：`TencentDataSource`、`YahooFinanceDataSource`、`SinaDataSource` 或 `EastMoneyDataSource`。
 2. 清洗行情：`normalize_quote_data(stocks)`。
 3. 检测异动：`detect(stocks)` 或 `detect_anomalies(stocks)`。
-4. 详细单股报告可计算技术指标：A 股用 EastMoney 历史 K 线，美股用 Yahoo history，输出 MACD / RSI。
+4. 详细单股报告可计算技术指标：A 股用 EastMoney 历史 K 线，美股用 Yahoo history，输出 MACD / RSI / BOLL / KDJ。
 5. 可选资讯：`search_configured_news(stocks)`。
 6. 渲染报告：Markdown 用 `render_standard_report` / `render_detailed_report`，HTML 用 `render_html_report`；详细报告会自动生成最终判断和数据可信度说明。
 7. 校验输出：Markdown 用 `validate_report(report_text, data)`。
@@ -201,7 +201,7 @@ python -m unittest discover -s tests -v
 - Markdown / HTML formatter
 - 报告 validator
 - 数据质量清洗
-- MACD / RSI 技术指标
+- MACD / RSI / BOLL / KDJ 技术指标
 - detector 对不可用字段的处理
 - 市场识别 helper
 - Yahoo Finance 美股 provider
@@ -244,7 +244,7 @@ StockSight-Skill/
 
 # StockSight-Skill
 
-[![Version](https://img.shields.io/badge/version-v0.1.2-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.1.2)
+[![Version](https://img.shields.io/badge/version-v0.2.0-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.2.0)
 [![Python](https://img.shields.io/badge/python-3.9%2B-2563eb)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
 [![Skill Ready](https://img.shields.io/badge/Codex%20Skill-ready-f97316)](SKILL.md)
@@ -265,7 +265,7 @@ StockSight-Skill is not just another quote script. It behaves like a compact mar
 - A final judgment section for detailed reports: stance, primary risk, and the next confirmation point.
 - Explicit report context: quote timestamp, technical cutoff date, and snapshot replay status.
 - Markdown for direct agent replies, HTML for polished reports.
-- Premium report visuals: risk gauge, signal radar, MACD/RSI, risk distribution, signal composition, and data-quality/credibility panels.
+- Premium report visuals: risk gauge, signal radar, MACD/RSI/BOLL/KDJ, risk distribution, signal composition, and data-quality/credibility panels.
 - Optional news aggregation through Tavily or SerpAPI.
 - Reproducible snapshots to keep different agents aligned on the same data, signals, news, and quality notes.
 - Minimal test suite for the core rendering and data paths.
@@ -373,7 +373,7 @@ If you need PDF, generate HTML first and export it from your own browser or syst
 1. Fetch quotes with `TencentDataSource`, `YahooFinanceDataSource`, `SinaDataSource`, or `EastMoneyDataSource`.
 2. Normalize quotes with `normalize_quote_data(stocks)`.
 3. Detect anomalies with `detect(stocks)` or `detect_anomalies(stocks)`.
-4. For detailed single-stock A-share or US reports, compute MACD / RSI from provider history.
+4. For detailed single-stock A-share or US reports, compute MACD / RSI / BOLL / KDJ from provider history.
 5. Optionally fetch news with `search_configured_news(stocks)`.
 6. Render Markdown or HTML; detailed reports automatically include a final judgment and data credibility summary.
 7. Validate Markdown with `validate_report(report_text, data)`.
