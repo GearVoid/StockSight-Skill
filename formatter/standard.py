@@ -28,6 +28,7 @@ from .base import (
     render_data_quality_section,
     render_highest_risk_badge,
     render_metric_strip,
+    render_report_context_section,
     render_news_details_standard,
     render_risk_distribution,
     render_signal_bar,
@@ -169,13 +170,17 @@ def render_standard_report(data: ReportData) -> str:
     parts.append(f"> {EmojiMap.REPORT} 一句话总结：{data.summary}")
     parts.append("")
 
-    # 3. 市场脉冲
+    # 3. 报告口径
+    parts.append(render_report_context_section(data))
+    parts.append("")
+
+    # 4. 市场脉冲
     parts.append(f"## {EmojiMap.AMOUNT} 市场脉冲")
     parts.append("")
     parts.append(_render_market_pulse(data))
     parts.append("")
 
-    # 4. 风险可视化
+    # 5. 风险可视化
     parts.append(f"## {EmojiMap.AMOUNT} 风险可视化")
     parts.append("")
     parts.append(render_risk_distribution(data.signals))
@@ -185,13 +190,13 @@ def render_standard_report(data: ReportData) -> str:
     parts.append(render_signal_composition(data.signals))
     parts.append("")
 
-    # 5. 数据完整性
+    # 6. 数据完整性
     data_quality = _render_data_quality(data.stocks)
     if data_quality:
         parts.append(data_quality)
         parts.append("")
 
-    # 6. 异动股票列表
+    # 7. 异动股票列表
     parts.append(f"## {EmojiMap.LIST} 异动股票列表")
     parts.append("")
 

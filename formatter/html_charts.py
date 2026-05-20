@@ -167,29 +167,53 @@ def _decision_card_html(stock: StockData, signals: Sequence[RiskSignal]) -> str:
 
 def _final_judgment_html(stock: StockData, signals: Sequence[RiskSignal], technical=None) -> str:
     stance, tone, main_risk, confirmation = final_judgment(stock, signals, technical)
+
+    # Map tone to visual theme
+    theme_colors = {
+        "danger": ("#fef2f2", "#c2412d", "#fecaca"),
+        "warning": ("#fff7ed", "#d97706", "#fed7aa"),
+        "watch": ("#f0f9ff", "#2563eb", "#bae6fd"),
+        "healthy": ("#f0fdf4", "#16794c", "#bbf7d0"),
+    }
+    bg, accent, _ = theme_colors.get(tone, theme_colors["watch"])
+
+    # Build signal summary
+    risk_types = list(dict.fromkeys(
+        str(getattr(s, "risk_type", "")) for s in signals if str(getattr(s, "risk_type", ""))
+    ))[:3]
+    if not main_risk and risk_types:
+        main_risk = "、".join(risk_types)
+
+    # Build trend indicators line
+    trend_items = []
+    if technical and getattr(technical, "trend", None):
+        t = technical.trend
+        if t.macd_alignment:
+            trend_items.append(f"MACD {t.macd_alignment_desc[:20]}")
+        if t.rsi_trend:
+            trend_items.append(t.rsi_trend_desc[:25])
+        if t.divergence:
+            icon = "⚠" if t.divergence == "bearish" else "✦"
+            trend_items.append(f"{icon} {t.divergence_desc[:30]}")
+    trend_line = " · ".join(trend_items) if trend_items else ""
+
     return (
-        '<section class="panel judgment-panel" id="judgment">'
-        '<div class="judgment-head">'
-        '<div>'
-        '<span class="eyebrow">FINAL VIEW</span>'
-        '<h2>最终判断</h2>'
-        '</div>'
-        f'<strong class="judgment-badge {tone}">{_html(stance)}</strong>'
-        '</div>'
-        '<div class="judgment-grid">'
-        '<article>'
-        '<span>核心结论</span>'
+        f'<section class="judgment-hero" id="judgment" style="background:{bg}; border-left:4px solid {accent};">'
+        '<div class="judgment-hero-inner">'
+        # Status badge
+        f'<div class="judgment-status-badge {tone}">'
         f'<strong>{_html(stance)}</strong>'
-        '<p>结合实时行情、异动信号与技术指标后形成，不替代交易决策。</p>'
-        '</article>'
-        '<article>'
-        '<span>主要风险</span>'
-        f'<strong>{_html(main_risk)}</strong>'
-        '</article>'
-        '<article>'
+        '</div>'
+        # Risk & trend summary
+        '<div class="judgment-hero-body">'
+        f'<p class="judgment-risk-line">{_html(main_risk)}</p>'
+        + (f'<p class="judgment-trend-line">{_html(trend_line)}</p>' if trend_line else '')
+        + '</div>'
+        # Next action
+        '<div class="judgment-hero-action">'
         '<span>下一步确认</span>'
-        f'<strong>{_html(confirmation)}</strong>'
-        '</article>'
+        f'<p>{_html(confirmation)}</p>'
+        '</div>'
         '</div>'
         '</section>'
     )

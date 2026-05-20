@@ -1258,6 +1258,104 @@ def _style() -> str:
       color: var(--muted);
       font-style: normal;
     }
+
+    /* === Hero Judgment Banner === */
+    .judgment-hero {
+      margin: 18px 0 6px;
+      border-radius: 14px;
+      padding: 22px 26px;
+      box-shadow: 0 8px 24px rgba(23, 32, 51, 0.06);
+      animation: fade-up 0.45s ease both;
+    }
+    .judgment-hero-inner {
+      display: flex;
+      align-items: flex-start;
+      gap: 18px;
+    }
+    .judgment-status-badge {
+      flex-shrink: 0;
+      min-width: 110px;
+      text-align: center;
+      padding: 13px 16px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 16px;
+      line-height: 1.3;
+    }
+    .judgment-status-badge.danger {
+      background: #fecaca;
+      color: #991b1b;
+    }
+    .judgment-status-badge.warning {
+      background: #fed7aa;
+      color: #92400e;
+    }
+    .judgment-status-badge.watch {
+      background: #bae6fd;
+      color: #1e40af;
+    }
+    .judgment-status-badge.healthy {
+      background: #bbf7d0;
+      color: #166534;
+    }
+    .judgment-hero-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .judgment-risk-line {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+      margin: 0 0 4px;
+      line-height: 1.45;
+    }
+    .judgment-trend-line {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin: 0;
+      line-height: 1.4;
+    }
+    .judgment-hero-action {
+      flex-shrink: 0;
+      width: 260px;
+      border-left: 1px solid var(--line);
+      padding-left: 18px;
+    }
+    .judgment-hero-action span {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .judgment-hero-action p {
+      font-size: 12.5px;
+      color: var(--ink);
+      margin: 0;
+      line-height: 1.45;
+    }
+
+    /* Compact variant for narrow */
+    @media (max-width: 760px) {
+      .judgment-hero-inner {
+        flex-direction: column;
+        gap: 12px;
+      }
+      .judgment-hero-action {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid var(--line);
+        padding-left: 0;
+        padding-top: 12px;
+      }
+      .judgment-status-badge {
+        min-width: auto;
+        align-self: flex-start;
+      }
+    }
+
 ""
 
 

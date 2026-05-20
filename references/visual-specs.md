@@ -44,6 +44,7 @@ HTML reports rendered by `render_html_report(data, mode)` may use built-in CSS o
 
 Detailed reports should also include:
 
+- A report context section near the top with quote timestamp, historical indicator cutoff date, and snapshot replay status.
 - A final judgment section with stance, primary risk, and next confirmation point.
 - A data credibility section that marks fields as confirmed, derived, unavailable, or history-computed.
 - Unavailable or derived fields must be shown transparently and should not create direct risk signals by themselves.

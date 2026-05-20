@@ -330,6 +330,7 @@ def _load_snapshot(path: Path) -> Tuple[ReportData, Dict[str, Any]]:
         raise ValueError("snapshot must contain a report object")
 
     data = _report_from_payload(payload["report"])
+    data.snapshot_source = str(path)
     if not data.stocks:
         raise ValueError("snapshot contains no stocks")
 

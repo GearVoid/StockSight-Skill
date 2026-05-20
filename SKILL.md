@@ -73,6 +73,7 @@ News providers are optional. Supported API key sources:
 - Do not block the core report on missing news API keys, news provider failures, or empty news results.
 - Use `—` for unavailable market metrics such as Hong Kong or US volume ratio.
 - In detailed reports, include the generated final judgment and data credibility sections; do not invent a separate conclusion outside the rendered report.
+- Keep the generated report context visible near the top: quote timestamp, historical indicator cutoff date, and whether the output was rendered from a snapshot.
 - Show data-quality notes when a metric is unavailable or clearly outside normal bounds.
 - Treat MACD/RSI as technical references. Bearish technical signals may raise risk, but bullish signals do not lower existing risk.
 - Include a brief investment-risk disclaimer when giving target or stop-loss style reference values.

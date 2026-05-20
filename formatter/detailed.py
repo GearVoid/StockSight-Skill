@@ -36,6 +36,7 @@ from .base import (
     final_judgment,
     render_highest_risk_badge,
     render_metric_strip,
+    render_report_context_section,
     render_news_details_detailed,
     render_risk_distribution,
     render_signal_bar,
@@ -121,7 +122,13 @@ def _render_data_quality(stocks: List[StockData]) -> str:
 
 def _combined_signals(data: ReportData, stock: StockData, signals: List[RiskSignal]) -> List[RiskSignal]:
     technical_signals = technical_risk_signals(data.technical, stock.code) if data.technical else []
-    return signals + technical_signals
+    existing = {(signal.risk_type, signal.description) for signal in signals}
+    unique_technical = [
+        signal
+        for signal in technical_signals
+        if (signal.risk_type, signal.description) not in existing
+    ]
+    return signals + unique_technical
 
 
 def _render_technical_section(data: ReportData) -> str:
@@ -279,7 +286,11 @@ def render_detailed_report(data: ReportData) -> str:
     parts.append(summary_text)
     parts.append("")
 
-    # 3. 最终判断
+    # 3. 报告口径
+    parts.append(render_report_context_section(data))
+    parts.append("")
+
+    # 4. 最终判断
     stance, _, main_risk, confirmation = final_judgment(stock, signals, data.technical)
     parts.append(f"## {EmojiMap.CONCLUSION} 最终判断")
     parts.append("")
@@ -292,13 +303,13 @@ def render_detailed_report(data: ReportData) -> str:
     )
     parts.append("")
 
-    # 4. 核心看板
+    # 5. 核心看板
     parts.append(f"## {EmojiMap.AMOUNT} 核心看板")
     parts.append("")
     parts.append(_render_core_panel(stock, signals))
     parts.append("")
 
-    # 5. 风险可视化
+    # 6. 风险可视化
     parts.append(f"## {EmojiMap.AMOUNT} 风险可视化")
     parts.append("")
     parts.append(render_risk_distribution(signals))
@@ -308,17 +319,17 @@ def render_detailed_report(data: ReportData) -> str:
     parts.append(render_signal_composition(signals))
     parts.append("")
 
-    # 6. 数据完整性
+    # 7. 数据完整性
     data_quality = _render_data_quality([stock])
     if data_quality:
         parts.append(data_quality)
         parts.append("")
 
-    # 7. 数据可信度
+    # 8. 数据可信度
     parts.append(render_data_credibility_section(stock, data.technical))
     parts.append("")
 
-    # 8. 价格概览（2列）
+    # 9. 价格概览（2列）
     parts.append(f"## {EmojiMap.PRICE} 价格概览")
     parts.append("")
     parts.append(
@@ -337,7 +348,7 @@ def render_detailed_report(data: ReportData) -> str:
     )
     parts.append("")
 
-    # 9. 量价指标（段落列表）
+    # 10. 量价指标（段落列表）
     parts.append(f"## {EmojiMap.AMOUNT} 量价指标")
     parts.append("")
     emoji_c = change_emoji(stock.change_percent)
@@ -349,11 +360,11 @@ def render_detailed_report(data: ReportData) -> str:
     parts.append(f"- {EmojiMap.TURNOVER} 换手率：{format_turnover(stock.turnover_rate)}")
     parts.append("")
 
-    # 10. 技术指标辅助
+    # 11. 技术指标辅助
     parts.append(_render_technical_section(data))
     parts.append("")
 
-    # 11. 异动分析
+    # 12. 异动分析
     if signals:
         parts.append(f"## {EmojiMap.ANALYSIS} 异动分析")
         parts.append("")
@@ -372,7 +383,7 @@ def render_detailed_report(data: ReportData) -> str:
                 parts.append("- 板块内部轮动")
                 parts.append("")
 
-    # 12. 风险提示
+    # 13. 风险提示
     if signals:
         parts.append(f"## {EmojiMap.RISK} 风险提示")
         parts.append("")
@@ -383,7 +394,7 @@ def render_detailed_report(data: ReportData) -> str:
         parts.append("当前未检测到显著风险信号。")
         parts.append("")
 
-    # 13. 操作建议
+    # 14. 操作建议
     parts.append(f"## {EmojiMap.CONCLUSION} 操作建议")
     parts.append("")
     max_level = max((s.level for s in signals), default=0)
@@ -408,18 +419,18 @@ def render_detailed_report(data: ReportData) -> str:
     parts.append("> 以上参考数值基于技术指标计算，不构成投资建议。")
     parts.append("")
 
-    # 14. 关注维度汇总表
+    # 15. 关注维度汇总表
     parts.append(f"### 关注维度")
     parts.append("")
     parts.append(_dimension_table(stock, signals))
     parts.append("")
 
-    # 15. 相关资讯（可选，详细模式用段落格式）
+    # 16. 相关资讯（可选，详细模式用段落格式）
     if data.news:
         parts.append(_render_news_details(data))
         parts.append("")
 
-    # 16. 数据来源
+    # 17. 数据来源
     parts.append(f"{EmojiMap.DATA_SOURCE} 数据来源：{data.data_source} | {EmojiMap.CLOCK} {data.timestamp}")
 
     return "\n".join(parts)
