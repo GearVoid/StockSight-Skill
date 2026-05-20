@@ -280,6 +280,16 @@ EASTMONEY_STOCK_RESPONSE = {
     },
 }
 
+EASTMONEY_HISTORY_RESPONSE = {
+    "rc": 0,
+    "data": {
+        "klines": [
+            "2026-01-01,10.00,10.50,10.80,9.90,1000,0,0,0,0,0",
+            "2026-01-02,10.50,10.80,11.00,10.40,1200,0,0,0,0,0",
+        ]
+    },
+}
+
 
 class EastMoneyParserTests(unittest.TestCase):
     def test_to_secid_shanghai(self):
@@ -340,6 +350,25 @@ class EastMoneyParserTests(unittest.TestCase):
 
     def test_provider_name_is_chinese(self):
         self.assertEqual(EastMoneyDataSource().name(), "东方财富")
+
+    def test_fetch_history_parses_kline_bars(self):
+        class FakeSession:
+            def get(self, url, params, headers, timeout):
+                class FakeResp:
+                    @staticmethod
+                    def json():
+                        return EASTMONEY_HISTORY_RESPONSE
+                return FakeResp()
+
+        ds = EastMoneyDataSource()
+        ds._session = FakeSession()
+
+        history = ds.fetch_history("600570", days=2)
+
+        self.assertEqual(history.code, "600570")
+        self.assertEqual(len(history.bars), 2)
+        self.assertEqual(history.bars[0].date, "2026-01-01")
+        self.assertAlmostEqual(history.bars[-1].close, 10.80)
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ from typing import Dict, List, Optional
 
 import requests
 
-from core import DataSource, DataSourceError, FetchResult, StockData
+from core import DataSource, DataSourceError, FetchResult, HistoryBar, StockData, StockHistory
 
 logger = logging.getLogger(__name__)
 
@@ -124,8 +124,84 @@ def _parse_yahoo_chart(payload: dict, code: str) -> StockData:
     )
 
 
+def _parse_history_chart(payload: dict, symbol: str) -> List[HistoryBar]:
+    """Parse Yahoo chart JSON into a list of HistoryBar."""
+    import datetime as _dt
+    chart = payload.get("chart") or {}
+    results = chart.get("result") or []
+    if not results:
+        return []
+
+    result = results[0]
+    timestamps = result.get("timestamp") or []
+    quote = ((result.get("indicators") or {}).get("quote") or [{}])[0]
+
+    opens = quote.get("open") or []
+    highs = quote.get("high") or []
+    lows = quote.get("low") or []
+    closes = quote.get("close") or []
+    volumes = quote.get("volume") or []
+
+    bars: List[HistoryBar] = []
+    for i in range(min(len(timestamps), len(closes))):
+        if closes[i] is None:
+            continue
+        dt = _dt.datetime.fromtimestamp(int(timestamps[i]))
+        bars.append(HistoryBar(
+            date=dt.strftime("%Y-%m-%d"),
+            open=float(opens[i]) if opens[i] is not None else 0.0,
+            high=float(highs[i]) if highs[i] is not None else 0.0,
+            low=float(lows[i]) if lows[i] is not None else 0.0,
+            close=float(closes[i]),
+            volume=int(volumes[i]) if volumes[i] is not None else 0,
+        ))
+    return bars
+
+
 class YahooFinanceDataSource(DataSource):
     """Yahoo Finance data source for US tickers."""
+
+    def fetch_history(self, symbol: str, days: int = 80) -> StockHistory:
+        """Fetch historical daily OHLCV data for a US ticker.
+
+        Args:
+            symbol: US ticker symbol (e.g. 'AAPL')
+            days: number of trading days to fetch (default 60)
+
+        Returns:
+            StockHistory with bars sorted by date ascending
+        """
+        import time as _time
+        normalized_symbol = symbol.strip().upper()
+        url = YAHOO_CHART_URL.format(symbol=normalized_symbol)
+
+        params = {
+            "range": f"{days + 5}d",
+            "interval": "1d",
+        }
+
+        payload = None
+        for attempt in range(self._max_retries + 1):
+            try:
+                resp = self._session.get(
+                    url, params=params, timeout=self._timeout,
+                    headers={"User-Agent": "StockSight/1.0"},
+                )
+                if resp.status_code != 200:
+                    if attempt == self._max_retries:
+                        return StockHistory(code=symbol)
+                    continue
+                payload = resp.json()
+                break
+            except (ValueError, requests.RequestException):
+                if attempt == self._max_retries:
+                    return StockHistory(code=symbol)
+                _time.sleep(0.5)
+
+        if payload is None:
+            return StockHistory(code=symbol)
+        bars = _parse_history_chart(payload, normalized_symbol)
+        return StockHistory(code=symbol, bars=bars)
 
     def __init__(self, timeout: int = 10, max_retries: int = 1):
         self._session = requests.Session()

@@ -68,6 +68,30 @@ def yahoo_payload():
     }
 
 
+def yahoo_history_payload():
+    return {
+        "chart": {
+            "result": [
+                {
+                    "timestamp": [1716163200, 1716249600],
+                    "indicators": {
+                        "quote": [
+                            {
+                                "open": [210.0, 211.0],
+                                "high": [213.0, 214.0],
+                                "low": [209.0, 210.0],
+                                "close": [212.0, 213.5],
+                                "volume": [1000, 1200],
+                            }
+                        ]
+                    },
+                }
+            ],
+            "error": None,
+        }
+    }
+
+
 class MarketAndExportTests(unittest.TestCase):
     def test_market_detection_helpers(self):
         self.assertEqual(detect_market("600001"), "sh")
@@ -102,6 +126,31 @@ class MarketAndExportTests(unittest.TestCase):
         self.assertIn("aapl", data)
         self.assertIn("600001", failed)
         self.assertIn("/AAPL", provider._session.calls[0][0])
+
+    def test_yahoo_fetch_history_parses_daily_bars(self):
+        provider = YahooFinanceDataSource()
+        provider._session = FakeSession(yahoo_history_payload())
+
+        history = provider.fetch_history("aapl", days=2)
+
+        self.assertEqual(history.code, "aapl")
+        self.assertEqual(len(history.bars), 2)
+        self.assertAlmostEqual(history.bars[-1].close, 213.5)
+        self.assertIn("/AAPL", provider._session.calls[0][0])
+
+    def test_yahoo_fetch_history_returns_empty_on_http_error(self):
+        class ErrorSession:
+            def get(self, url, **kwargs):
+                response = FakeResponse({})
+                response.status_code = 500
+                return response
+
+        provider = YahooFinanceDataSource(max_retries=0)
+        provider._session = ErrorSession()
+
+        history = provider.fetch_history("AAPL")
+
+        self.assertEqual(history.bars, [])
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ The HTML output is a self-contained premium report page. It intentionally uses
 plain CSS only: no JavaScript, external images, or template dependencies.
 """
 
-from core import ReportData
+from core import ReportData, technical_risk_signals
 from .base import (
     EmojiMap,
     change_emoji,
@@ -36,11 +36,12 @@ from .html_sections import (
     _signal_composition_html,
     _stock_table_html,
     _target_stock_and_signals,
+    _technical_indicators_html,
     _volume_price_html,
 )
 from .html_style import _style
 
-def render_html_report(data: ReportData, mode: str = "detailed") -> str:
+def render_html_report(data: ReportData, mode: str = "detailed", macd_result=None) -> str:
     if not data.stocks:
         title = _html(data.title or "StockSight Report")
         return (
@@ -57,6 +58,17 @@ def render_html_report(data: ReportData, mode: str = "detailed") -> str:
         visible_stocks = data.stocks
         visible_signals = data.signals
         title = data.title
+
+    if selected_mode == "detailed":
+        technical = data.technical
+        if technical is None and macd_result is not None:
+            from core import TechnicalAnalysis
+            technical = TechnicalAnalysis(macd=macd_result)
+        visible_signals = visible_signals + (
+            technical_risk_signals(technical, visible_stocks[0].code) if technical else []
+        )
+    else:
+        technical = None
 
     top_level = max((sig.level for sig in visible_signals), default=0)
     tone = "danger" if top_level >= 3 else ""
@@ -127,6 +139,7 @@ def render_html_report(data: ReportData, mode: str = "detailed") -> str:
         + price_range_section
         + volume_price_section
         + detailed_only
+        + (_technical_indicators_html(technical) if selected_mode == "detailed" else "")
         + _risk_distribution_html(visible_signals)
         + _signal_composition_html(visible_signals)
         + _quality_html(visible_stocks)

@@ -141,3 +141,12 @@ Detailed reports:
 ## Disclaimer
 
 Operation suggestions, target prices, and stop-loss values are technical references only and do not constitute investment advice.
+
+## MACD / RSI Technical Indicators
+
+- Detailed single-stock HTML reports may include a static MACD SVG chart and RSI range strip.
+- Detailed Markdown reports may include a compact "技术指标辅助" table.
+- MACD/RSI are computed only when A-share or US historical bars are available.
+- Bearish technical signals may be converted into `RiskSignal` entries for risk distribution and signal composition.
+- Bullish technical signals are displayed as auxiliary context and must not reduce existing risk scores.
+- Snapshot replay must use the saved `ReportData.technical` payload instead of refetching history or recomputing indicators.

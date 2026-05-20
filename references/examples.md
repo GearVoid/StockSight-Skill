@@ -122,6 +122,22 @@ Use these examples as formatting references, not as market recommendations.
 
 > 以上参考数值基于技术指标计算，不构成投资建议。
 
+## Technical Indicator Example
+
+Detailed single-stock reports may add:
+
+```markdown
+## 📈 技术指标辅助
+
+| 指标 | 状态 |
+|:---|:---|
+| MACD | 偏空（DIF 0.1600 / DEA 0.1800 / 柱 -0.0400） |
+| RSI14 | 74.20（超买区） |
+| 近期信号 | 超买：RSI 高于 70，需警惕追高风险。 |
+```
+
+HTML detailed reports render the same technical payload as a MACD chart, RSI range strip, and technical signal cards.
+
 📡 数据来源：腾讯财经 | 🕐 2026-05-18 10:00
 ```
 
