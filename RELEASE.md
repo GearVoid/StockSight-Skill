@@ -93,10 +93,10 @@ For visual releases, generate a fresh HTML report and update README screenshots 
 Suggested flow:
 
 ```bash
-py -3 scripts/report.py --from-snapshot examples/snapshot-sample.json --html --out reports/sample.html
+py -3 scripts/render_examples.py
 ```
 
-Then capture the relevant viewport into `docs/images/`.
+Review the rendered files in `reports/examples/`, then capture the relevant viewport into `docs/images/` when the README screenshots need to change.
 
 ### 8. Commit, Tag, Push
 
@@ -125,7 +125,7 @@ Create a GitHub Release:
 git clone --branch vX.Y.Z https://github.com/GearVoid/StockSight-Skill.git /tmp/stocksight-test
 cd /tmp/stocksight-test
 pip install -r requirements.txt
-python scripts/report.py --from-snapshot examples/snapshot-sample.json --html --out /tmp/test.html
+python scripts/report.py --from-snapshot examples/a-share-detailed.json --html --out /tmp/test.html
 ```
 
 ## Release History

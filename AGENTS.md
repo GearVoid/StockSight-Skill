@@ -51,7 +51,13 @@ python scripts/report.py --from-snapshot snapshots/002346.json --html --out repo
 Offline demo:
 
 ```bash
-python scripts/report.py --from-snapshot examples/snapshot-sample.json --html --out reports/sample.html --markdown-out outputs/sample.md
+python scripts/report.py --from-snapshot examples/a-share-detailed.json --html --out reports/sample.html --markdown-out outputs/sample.md
+```
+
+Render fixed formatter comparison examples:
+
+```bash
+python scripts/render_examples.py
 ```
 
 When rendering from `--from-snapshot`, do not fetch live quotes, re-run news search, re-detect signals, or recompute MACD/RSI. The snapshot is the source of truth.
