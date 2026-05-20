@@ -6,6 +6,8 @@ from typing import Dict, List, Sequence, Tuple
 from core import ReportData, RiskSignal, StockData
 from .base import (
     change_emoji,
+    credibility_level,
+    data_credibility_rows,
     fmt_signal_level,
     format_change_plain,
     format_price,
@@ -305,7 +307,7 @@ def _assess_metric_status(stock: StockData) -> List[Tuple[str, str, str]]:
     return results
 
 
-def _quality_html(stocks: Sequence[StockData]) -> str:
+def _quality_html(stocks: Sequence[StockData], technical=None) -> str:
     all_statuses: List[Tuple[str, str, str]] = []
     notes = metric_quality_notes(stocks)
 
@@ -339,6 +341,37 @@ def _quality_html(stocks: Sequence[StockData]) -> str:
     if notes:
         note_items = '<div class="qi-notes">' + "".join(f"<p>{_html(n)}</p>" for n in notes) + "</div>"
 
+    credibility = ""
+    if stocks:
+        stock = stocks[0]
+        trust_items = []
+        for label, status, source, note in data_credibility_rows(stock, technical):
+            css_class = {
+                "可确认": "ok",
+                "历史计算": "computed",
+                "推导值": "derived",
+                "不可用": "unavailable",
+            }.get(status, "unavailable")
+            trust_items.append(
+                f'<div class="trust-item {css_class}">'
+                f'<span>{_html(label)}</span>'
+                f'<strong>{_html(status)}</strong>'
+                f'<em>{_html(source)}</em>'
+                f'<p>{_html(note)}</p>'
+                '</div>'
+            )
+        credibility = (
+            '<div class="trust-block">'
+            '<div class="trust-head">'
+            '<h3>数据可信度</h3>'
+            f'<strong>{_html(credibility_level(stock, technical))}</strong>'
+            '</div>'
+            '<div class="trust-grid">'
+            + "".join(trust_items)
+            + '</div>'
+            '</div>'
+        )
+
     return (
         '<section class="panel quality-panel" id="quality">'
         "<h2>数据完整性</h2>"
@@ -348,6 +381,7 @@ def _quality_html(stocks: Sequence[StockData]) -> str:
         + "".join(items)
         + "</div>"
         + note_items
+        + credibility
         + "</div>"
         "</section>"
     )

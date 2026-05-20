@@ -22,9 +22,10 @@ StockSight-Skill 不是“再写一个行情脚本”。它更像一个小型盘
 - **Agent-ready**：标准 `SKILL.md` 入口，Codex / agent 可以发现、触发、使用。
 - **跨市场**：支持 A 股、港股、美股；内置腾讯财经、Yahoo Finance、新浪财经、东方财富 provider。
 - **异动识别**：检测量比偏离、换手率异常、收益偏离、MACD、RSI 等技术信号。
-- **坏数据防误导**：明显异常字段会显示为 `—`，不参与风险判断。
+- **可信度先行**：明显异常字段会显示为 `—`，并标明“可确认 / 推导 / 不可用 / 历史计算”，避免坏数据带偏结论。
+- **最终判断区**：详细报告会给出核心结论、主要风险和下一步确认点，让 agent 输出更像分析员而不是表格搬运工。
 - **双输出**：Markdown 适合 agent 直接回复，HTML 适合正式报告和分享。
-- **轻量可视化**：风险仪表盘、信号雷达、MACD/RSI、风险分布、信号构成、数据完整性面板。
+- **轻量可视化**：风险仪表盘、信号雷达、MACD/RSI、风险分布、信号构成、数据完整性与可信度面板。
 - **可选资讯聚合**：配置 Tavily 或 SerpAPI 后补充公告、财报、异动新闻。
 - **可复现快照**：用 snapshot 固定行情、信号、资讯和质量提示，减少不同 agent 之间的自由发挥。
 - **最小测试套件**：覆盖 formatter、validator、质量清洗、市场识别、Yahoo provider、snapshot 回放。
@@ -84,7 +85,7 @@ python scripts/report.py --from-snapshot examples/snapshot-sample.json --html --
 3. 检测异动：`detect(stocks)` 或 `detect_anomalies(stocks)`。
 4. 详细单股报告可计算技术指标：A 股用 EastMoney 历史 K 线，美股用 Yahoo history，输出 MACD / RSI。
 5. 可选资讯：`search_configured_news(stocks)`。
-6. 渲染报告：Markdown 用 `render_standard_report` / `render_detailed_report`，HTML 用 `render_html_report`。
+6. 渲染报告：Markdown 用 `render_standard_report` / `render_detailed_report`，HTML 用 `render_html_report`；详细报告会自动生成最终判断和数据可信度说明。
 7. 校验输出：Markdown 用 `validate_report(report_text, data)`。
 8. 追求一致性时：优先 `--save-snapshot`，后续一律 `--from-snapshot` 渲染。
 
@@ -202,9 +203,10 @@ StockSight-Skill is not just another quote script. It behaves like a compact mar
 - **Cross-market** quote support for A-shares, Hong Kong equities, and US tickers.
 - Providers for Tencent, Yahoo Finance, Sina, and EastMoney.
 - Signal detection for volume ratio, turnover, return, MACD, and RSI anomalies.
-- Data-quality guardrails so suspicious fields do not create misleading risk signals.
+- Data credibility labels for confirmed, derived, unavailable, and history-computed fields.
+- A final judgment section for detailed reports: stance, primary risk, and the next confirmation point.
 - Markdown for direct agent replies, HTML for polished reports.
-- Premium report visuals: risk gauge, signal radar, MACD/RSI, risk distribution, signal composition, and data-quality panels.
+- Premium report visuals: risk gauge, signal radar, MACD/RSI, risk distribution, signal composition, and data-quality/credibility panels.
 - Optional news aggregation through Tavily or SerpAPI.
 - Reproducible snapshots to keep different agents aligned on the same data, signals, news, and quality notes.
 - Minimal test suite for the core rendering and data paths.
@@ -264,7 +266,7 @@ If you need PDF, generate HTML first and export it from your own browser or syst
 3. Detect anomalies with `detect(stocks)` or `detect_anomalies(stocks)`.
 4. For detailed single-stock A-share or US reports, compute MACD / RSI from provider history.
 5. Optionally fetch news with `search_configured_news(stocks)`.
-6. Render Markdown or HTML.
+6. Render Markdown or HTML; detailed reports automatically include a final judgment and data credibility summary.
 7. Validate Markdown with `validate_report(report_text, data)`.
 8. When consistency matters, save a snapshot once and replay from `--from-snapshot`.
 

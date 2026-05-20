@@ -7,6 +7,7 @@ import math
 from core import RiskSignal, StockData
 from .base import (
     fmt_signal_level,
+    final_judgment,
     format_change_plain,
     format_price,
     format_turnover,
@@ -157,6 +158,40 @@ def _decision_card_html(stock: StockData, signals: Sequence[RiskSignal]) -> str:
         "</div>"
         '<p class="muted dc-disclaimer">以上参考数值基于技术指标计算，不构成投资建议。</p>'
         "</section>"
+    )
+
+
+# =============================================================================
+# 最终判断
+# =============================================================================
+
+def _final_judgment_html(stock: StockData, signals: Sequence[RiskSignal], technical=None) -> str:
+    stance, tone, main_risk, confirmation = final_judgment(stock, signals, technical)
+    return (
+        '<section class="panel judgment-panel" id="judgment">'
+        '<div class="judgment-head">'
+        '<div>'
+        '<span class="eyebrow">FINAL VIEW</span>'
+        '<h2>最终判断</h2>'
+        '</div>'
+        f'<strong class="judgment-badge {tone}">{_html(stance)}</strong>'
+        '</div>'
+        '<div class="judgment-grid">'
+        '<article>'
+        '<span>核心结论</span>'
+        f'<strong>{_html(stance)}</strong>'
+        '<p>结合实时行情、异动信号与技术指标后形成，不替代交易决策。</p>'
+        '</article>'
+        '<article>'
+        '<span>主要风险</span>'
+        f'<strong>{_html(main_risk)}</strong>'
+        '</article>'
+        '<article>'
+        '<span>下一步确认</span>'
+        f'<strong>{_html(confirmation)}</strong>'
+        '</article>'
+        '</div>'
+        '</section>'
     )
 
 
@@ -333,6 +368,7 @@ def _radar_signal_description(key: str, value: float, level: int) -> str:
 
 _NAV_ITEMS = [
     ("#core", "📊", "核心"),
+    ("#judgment", "🧭", "判断"),
     ("#price-range", "📈", "价格"),
     ("#vol-price", "🔄", "量价"),
     ("#risk-gauge", "🎯", "仪表"),

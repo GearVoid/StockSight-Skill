@@ -318,6 +318,113 @@ def metric_quality_notes(stocks: Sequence[object]) -> List[str]:
     return notes
 
 
+def _turnover_source_text(stock: StockData) -> Tuple[str, str]:
+    raw = stock.raw or {}
+    source = str(raw.get("turnover_rate_source", "") or "")
+    value = getattr(stock, "turnover_rate", 0)
+    if value <= 0 or value > 100 or source == "provider_field_untrusted":
+        return "不可用", "未采用"
+    if source == "derived_float_shares":
+        return "推导值", "成交量 / 流通股本"
+    if source == "provider_field":
+        return "可确认", "数据源字段"
+    return "可确认", "数据源字段"
+
+
+def data_credibility_rows(stock: StockData, technical: object = None) -> List[Tuple[str, str, str, str]]:
+    """Return concise field credibility rows: label, status, source, note."""
+    volume_ratio_status = "可确认" if stock.volume_ratio > 0 else "不可用"
+    volume_ratio_source = "数据源字段" if stock.volume_ratio > 0 else "未采用"
+    turnover_status, turnover_source = _turnover_source_text(stock)
+
+    technical_ready = bool(
+        technical
+        and (
+            getattr(getattr(technical, "macd", None), "dates", None)
+            or getattr(getattr(technical, "rsi", None), "values", None)
+        )
+    )
+    technical_status = "历史计算" if technical_ready else "不可用"
+    technical_source = "历史行情计算" if technical_ready else "未加载历史行情"
+
+    rows = [
+        ("实时行情", "可确认" if stock.current_price > 0 else "不可用", "数据源字段", "现价/涨跌幅"),
+        ("成交活跃度", "可确认" if stock.volume >= 0 and stock.amount >= 0 else "不可用", "数据源字段", "成交量/成交额"),
+        ("量比", volume_ratio_status, volume_ratio_source, "不可用时不触发量比风险"),
+        ("换手率", turnover_status, turnover_source, "不可用或异常时不纳入风险判断"),
+        ("MACD/RSI", technical_status, technical_source, "仅作技术辅助判断"),
+    ]
+    return rows
+
+
+def credibility_level(stock: StockData, technical: object = None) -> str:
+    """Summarize whether the report has enough confirmed inputs."""
+    statuses = [status for _, status, _, _ in data_credibility_rows(stock, technical)]
+    unavailable = statuses.count("不可用")
+    derived = statuses.count("推导值")
+    if unavailable >= 3:
+        return "偏低"
+    if unavailable >= 1 or derived >= 1:
+        return "中等"
+    return "较高"
+
+
+def render_data_credibility_section(stock: StockData, technical: object = None) -> str:
+    """Render Markdown data credibility table."""
+    rows = data_credibility_rows(stock, technical)
+    return "\n".join([
+        f"## {EmojiMap.TIP} 数据可信度",
+        "",
+        render_table(
+            ["字段", "状态", "来源"],
+            [[label, render_badge(status), source] for label, status, source, _ in rows],
+            col_align=["left", "center", "left"],
+        ),
+        "",
+        f"> 可信度：{render_badge(credibility_level(stock, technical))}。不可用或推导字段会被降权处理，避免直接放大风险结论。",
+    ])
+
+
+def final_judgment(stock: StockData, signals: Sequence[object], technical: object = None) -> Tuple[str, str, str, str]:
+    """Return stance, tone class, main risk, next confirmation."""
+    max_level = max((int(getattr(sig, "level", 0) or 0) for sig in signals), default=0)
+    top_signal = max(signals, key=lambda sig: int(getattr(sig, "level", 0) or 0), default=None)
+
+    if max_level >= 3:
+        stance = "高风险观望"
+        tone = "danger"
+    elif max_level >= 2:
+        stance = "偏强但需防回撤" if stock.change_percent >= 0 else "转弱风险升温"
+        tone = "warning"
+    elif max_level >= 1:
+        stance = "轻度异动观察"
+        tone = "watch"
+    else:
+        stance = "结构平稳"
+        tone = "healthy"
+
+    if top_signal is None:
+        main_risk = "暂无显著异动信号"
+        confirmation = "继续观察成交量、价格区间和 MACD/RSI 是否同步转强或转弱。"
+    else:
+        risk_type = str(getattr(top_signal, "risk_type", "未知信号"))
+        description = str(getattr(top_signal, "description", "") or "")
+        main_risk = risk_type if not description else f"{risk_type}：{description}"
+        if "RSI" in risk_type:
+            confirmation = "确认 RSI 是否回落到中性区间，并观察价格是否脱离追高区。"
+        elif "MACD" in risk_type:
+            confirmation = "确认 DIF/DEA 是否延续走弱，避免单日交叉造成误判。"
+        elif "量比" in risk_type:
+            confirmation = "确认放量是否持续，并结合价格方向判断是资金承接还是冲高回落。"
+        elif "换手" in risk_type:
+            confirmation = "确认换手是否伴随有效价格突破，避免高换手后的短线回撤。"
+        else:
+            confirmation = "确认后续成交额、振幅和收盘位置是否继续支持该信号。"
+
+    confidence = credibility_level(stock, technical)
+    return stance, tone, main_risk, f"{confirmation} 当前数据可信度：{confidence}。"
+
+
 def render_metric_strip(metrics: Sequence[Tuple[str, str]]) -> str:
     """渲染顶部指标摘要条，最多 5 个指标。"""
     if not metrics:

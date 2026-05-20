@@ -32,6 +32,8 @@ from .base import (
     metric_quality_notes,
     render_badge,
     render_data_quality_section,
+    render_data_credibility_section,
+    final_judgment,
     render_highest_risk_badge,
     render_metric_strip,
     render_news_details_detailed,
@@ -257,13 +259,26 @@ def render_detailed_report(data: ReportData) -> str:
     parts.append(summary_text)
     parts.append("")
 
-    # 3. 价格概览（2列）
+    # 3. 最终判断
+    stance, _, main_risk, confirmation = final_judgment(stock, signals, data.technical)
+    parts.append(f"## {EmojiMap.CONCLUSION} 最终判断")
+    parts.append("")
+    parts.append(
+        render_table(
+            ["结论", "主要风险", "下一步确认"],
+            [[render_badge(stance), main_risk, confirmation]],
+            col_align=["center", "left", "left"],
+        )
+    )
+    parts.append("")
+
+    # 4. 核心看板
     parts.append(f"## {EmojiMap.AMOUNT} 核心看板")
     parts.append("")
     parts.append(_render_core_panel(stock, signals))
     parts.append("")
 
-    # 4. 风险可视化
+    # 5. 风险可视化
     parts.append(f"## {EmojiMap.AMOUNT} 风险可视化")
     parts.append("")
     parts.append(render_risk_distribution(signals))
@@ -273,13 +288,17 @@ def render_detailed_report(data: ReportData) -> str:
     parts.append(render_signal_composition(signals))
     parts.append("")
 
-    # 5. 数据完整性
+    # 6. 数据完整性
     data_quality = _render_data_quality([stock])
     if data_quality:
         parts.append(data_quality)
         parts.append("")
 
-    # 6. 价格概览（2列）
+    # 7. 数据可信度
+    parts.append(render_data_credibility_section(stock, data.technical))
+    parts.append("")
+
+    # 8. 价格概览（2列）
     parts.append(f"## {EmojiMap.PRICE} 价格概览")
     parts.append("")
     parts.append(
@@ -298,7 +317,7 @@ def render_detailed_report(data: ReportData) -> str:
     )
     parts.append("")
 
-    # 7. 量价指标（段落列表）
+    # 9. 量价指标（段落列表）
     parts.append(f"## {EmojiMap.AMOUNT} 量价指标")
     parts.append("")
     emoji_c = change_emoji(stock.change_percent)
@@ -310,11 +329,11 @@ def render_detailed_report(data: ReportData) -> str:
     parts.append(f"- {EmojiMap.TURNOVER} 换手率：{format_turnover(stock.turnover_rate)}")
     parts.append("")
 
-    # 8. 技术指标辅助
+    # 10. 技术指标辅助
     parts.append(_render_technical_section(data))
     parts.append("")
 
-    # 9. 异动分析
+    # 11. 异动分析
     if signals:
         parts.append(f"## {EmojiMap.ANALYSIS} 异动分析")
         parts.append("")
@@ -333,7 +352,7 @@ def render_detailed_report(data: ReportData) -> str:
                 parts.append("- 板块内部轮动")
                 parts.append("")
 
-    # 10. 风险提示
+    # 12. 风险提示
     if signals:
         parts.append(f"## {EmojiMap.RISK} 风险提示")
         parts.append("")
@@ -344,7 +363,7 @@ def render_detailed_report(data: ReportData) -> str:
         parts.append("当前未检测到显著风险信号。")
         parts.append("")
 
-    # 11. 操作建议
+    # 13. 操作建议
     parts.append(f"## {EmojiMap.CONCLUSION} 操作建议")
     parts.append("")
     max_level = max((s.level for s in signals), default=0)
@@ -369,18 +388,18 @@ def render_detailed_report(data: ReportData) -> str:
     parts.append("> 以上参考数值基于技术指标计算，不构成投资建议。")
     parts.append("")
 
-    # 12. 关注维度汇总表
+    # 14. 关注维度汇总表
     parts.append(f"### 关注维度")
     parts.append("")
     parts.append(_dimension_table(stock, signals))
     parts.append("")
 
-    # 13. 相关资讯（可选，详细模式用段落格式）
+    # 15. 相关资讯（可选，详细模式用段落格式）
     if data.news:
         parts.append(_render_news_details(data))
         parts.append("")
 
-    # 14. 数据来源
+    # 16. 数据来源
     parts.append(f"{EmojiMap.DATA_SOURCE} 数据来源：{data.data_source} | {EmojiMap.CLOCK} {data.timestamp}")
 
     return "\n".join(parts)
