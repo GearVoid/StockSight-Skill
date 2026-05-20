@@ -18,6 +18,7 @@ from .html_utils import (
 from .html_charts import (
     _macd_chart_html,
     _decision_card_html,
+    _final_judgment_html,
     _nav_html,
     _radar_html,
     _risk_distribution_html,
@@ -41,6 +42,7 @@ __all__ = [
     "VERSION",
     "_calculate_risk_score",
     "_decision_card_html",
+    "_final_judgment_html",
     "_get_risk_status",
     "_html",
     "_level_pie_gradient",

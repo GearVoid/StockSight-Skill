@@ -22,6 +22,7 @@ from .html_sections import (
     HEADER_GRADIENTS,
     VERSION,
     _decision_card_html,
+    _final_judgment_html,
     _html,
     _metric_card,
     _metric_card_heat,
@@ -107,6 +108,11 @@ def render_html_report(data: ReportData, mode: str = "detailed", macd_result=Non
 
     price_range_section = _price_range_html(first_stock)
     volume_price_section = _volume_price_html(first_stock, visible_signals)
+    judgment_panel = (
+        _final_judgment_html(first_stock, visible_signals, technical)
+        if selected_mode == "detailed"
+        else ""
+    )
 
     detailed_only = ""
     if selected_mode == "detailed":
@@ -136,13 +142,14 @@ def render_html_report(data: ReportData, mode: str = "detailed", macd_result=Non
         + "</div>"
         "</header>"
         + price_panel
+        + judgment_panel
         + price_range_section
         + volume_price_section
         + detailed_only
         + (_technical_indicators_html(technical) if selected_mode == "detailed" else "")
         + _risk_distribution_html(visible_signals)
         + _signal_composition_html(visible_signals)
-        + _quality_html(visible_stocks)
+        + _quality_html(visible_stocks, technical)
         + _stock_table_html(visible_stocks, visible_signals)
         + _risk_notes_html(visible_signals)
         + _news_html(data)

@@ -489,6 +489,69 @@ def _style() -> str:
     .dc-action-badge.caution { background: #d36b23; }
     .dc-disclaimer { margin-top: 12px; text-align: center; }
 
+    /* ---- 最终判断 ---- */
+    .judgment-panel {
+      border-left: 4px solid var(--accent);
+      background:
+        radial-gradient(circle at 16% 0%, rgba(47,111,237,.10), transparent 32%),
+        var(--panel);
+    }
+    .judgment-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .judgment-head h2 { margin: 2px 0 0; }
+    .eyebrow {
+      display: inline-block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .08em;
+    }
+    .judgment-badge {
+      padding: 7px 14px;
+      border-radius: 999px;
+      color: #fff;
+      font-size: 13px;
+      white-space: nowrap;
+      box-shadow: 0 8px 18px rgba(23,32,51,.12);
+    }
+    .judgment-badge.healthy { background: #16794c; }
+    .judgment-badge.watch { background: #d79b2b; }
+    .judgment-badge.warning { background: #d36b23; }
+    .judgment-badge.danger { background: #c2412d; }
+    .judgment-grid {
+      display: grid;
+      grid-template-columns: minmax(160px, .8fr) minmax(220px, 1.3fr) minmax(220px, 1.4fr);
+      gap: 12px;
+    }
+    .judgment-grid article {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255,255,255,.78);
+    }
+    .judgment-grid span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .judgment-grid strong {
+      display: block;
+      color: var(--ink);
+      line-height: 1.55;
+    }
+    .judgment-grid p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
     /* ---- 信号雷达图 ---- */
     .radar-wrapper {
       display: flex;
@@ -920,6 +983,55 @@ def _style() -> str:
     .qi-status { color: var(--muted); font-size: 12px; }
     .qi-notes { grid-column: 1 / -1; margin-top: 8px; }
     .qi-notes p { margin: 4px 0; font-size: 13px; color: var(--muted); }
+    .trust-block {
+      grid-column: 1 / -1;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+    .trust-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .trust-head h3 { margin: 0; font-size: 15px; }
+    .trust-head strong {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #edf4ff;
+      color: var(--accent);
+      font-size: 12px;
+    }
+    .trust-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 8px;
+    }
+    .trust-item {
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+    .trust-item span,
+    .trust-item em,
+    .trust-item p {
+      display: block;
+      font-style: normal;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .trust-item strong {
+      display: block;
+      margin: 4px 0 3px;
+      color: var(--ink);
+    }
+    .trust-item p { margin: 4px 0 0; line-height: 1.45; }
+    .trust-item.ok { border-color: #c6e4c6; }
+    .trust-item.computed { border-color: #bcd4ff; }
+    .trust-item.derived { border-color: #f5d6a8; }
+    .trust-item.unavailable { border-color: #f0b8b8; }
 
     /* ---- 响应式 ---- */
     @media (max-width: 820px) {
@@ -927,6 +1039,8 @@ def _style() -> str:
       header { border-radius: 0; animation: none; padding: 26px 18px; }
       h1 { font-size: 26px; }
       .metric-grid, .chart-grid { grid-template-columns: 1fr; }
+      .judgment-head { flex-direction: column; }
+      .judgment-grid { grid-template-columns: 1fr; }
       .risk-insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .panel { border-radius: 0; margin-top: 12px; }
       .bar-row { grid-template-columns: 1fr; gap: 6px; }

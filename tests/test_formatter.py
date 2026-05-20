@@ -30,6 +30,8 @@ class FormatterTests(unittest.TestCase):
         self.assertTrue(result.passed, result.errors)
         self.assertIn("<details>", report)
         self.assertIn("技术指标辅助", report)
+        self.assertIn("最终判断", report)
+        self.assertIn("数据可信度", report)
 
     def test_html_report_contains_split_sections(self):
         html = render_html_report(sample_report())
@@ -38,6 +40,8 @@ class FormatterTests(unittest.TestCase):
         self.assertIn("<style>", html)
         self.assertIn("risk-dashboard-shell", html)
         self.assertIn("new-radar-svg", html)
+        self.assertIn('id="judgment"', html)
+        self.assertIn("数据可信度", html)
         self.assertIn("StockSight v2.0", html)
 
     def test_html_report_without_signals_does_not_create_fake_pie(self):
