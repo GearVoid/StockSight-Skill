@@ -21,6 +21,8 @@ class FormatterTests(unittest.TestCase):
         self.assertTrue(result.passed, result.errors)
         self.assertIn("<kbd>", report)
         self.assertIn("▰", report)
+        self.assertIn("报告口径", report)
+        self.assertIn("行情时间", report)
 
     def test_detailed_report_validates(self):
         data = sample_report()
@@ -32,6 +34,8 @@ class FormatterTests(unittest.TestCase):
         self.assertIn("技术指标辅助", report)
         self.assertIn("最终判断", report)
         self.assertIn("数据可信度", report)
+        self.assertIn("报告口径", report)
+        self.assertIn("使用 Snapshot", report)
 
     def test_html_report_contains_split_sections(self):
         html = render_html_report(sample_report())
@@ -42,6 +46,8 @@ class FormatterTests(unittest.TestCase):
         self.assertIn("new-radar-svg", html)
         self.assertIn('id="judgment"', html)
         self.assertIn("数据可信度", html)
+        self.assertIn("行情时间", html)
+        self.assertIn("Snapshot", html)
         self.assertIn("StockSight v2.0", html)
 
     def test_html_report_without_signals_does_not_create_fake_pie(self):

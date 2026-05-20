@@ -24,11 +24,54 @@ StockSight-Skill 不是“再写一个行情脚本”。它更像一个小型盘
 - **异动识别**：检测量比偏离、换手率异常、收益偏离、MACD、RSI 等技术信号。
 - **可信度先行**：明显异常字段会显示为 `—`，并标明“可确认 / 推导 / 不可用 / 历史计算”，避免坏数据带偏结论。
 - **最终判断区**：详细报告会给出核心结论、主要风险和下一步确认点，让 agent 输出更像分析员而不是表格搬运工。
+- **报告口径锁定**：顶部明确行情时间、历史指标截止日期、是否使用 snapshot，减少跨 agent 输出漂移。
 - **双输出**：Markdown 适合 agent 直接回复，HTML 适合正式报告和分享。
 - **轻量可视化**：风险仪表盘、信号雷达、MACD/RSI、风险分布、信号构成、数据完整性与可信度面板。
 - **可选资讯聚合**：配置 Tavily 或 SerpAPI 后补充公告、财报、异动新闻。
 - **可复现快照**：用 snapshot 固定行情、信号、资讯和质量提示，减少不同 agent 之间的自由发挥。
 - **最小测试套件**：覆盖 formatter、validator、质量清洗、市场识别、Yahoo provider、snapshot 回放。
+
+
+## 安装为 Codex Skill
+
+### 方式一：skill 安装器（推荐）
+
+在支持 skill 安装器的 Codex / agent 中：
+
+```text
+安装 stocksight skill
+```
+
+如果 skill 安装器支持 GitHub URL：
+
+```text
+安装 https://github.com/GearVoid/StockSight-Skill.git
+```
+
+### 方式二：手动安装
+
+```bash
+# 克隆仓库
+git clone https://github.com/GearVoid/StockSight-Skill.git
+
+# 安装依赖
+cd StockSight-Skill
+pip install -r requirements.txt
+```
+
+然后把整个仓库目录放进 Codex 的 skills 目录（默认 ~/.codex/skills/），或在 agent 配置中引用该路径。
+
+### 验证安装
+
+```bash
+python scripts/report.py --from-snapshot examples/snapshot-sample.json --html --out reports/sample.html
+```
+
+如果成功生成 `reports/sample.html`，说明安装正常。无需网络，无需 API key。
+
+### 其它 Agent（Hermes / Cursor / 通用）
+
+详见 [AGENTS.md](AGENTS.md) — 包含完整的 CLI 调用方式、snapshot 保存与回放、Python API 快速参考。
 
 ## 快速开始
 
@@ -87,7 +130,7 @@ python scripts/report.py --from-snapshot examples/snapshot-sample.json --html --
 5. 可选资讯：`search_configured_news(stocks)`。
 6. 渲染报告：Markdown 用 `render_standard_report` / `render_detailed_report`，HTML 用 `render_html_report`；详细报告会自动生成最终判断和数据可信度说明。
 7. 校验输出：Markdown 用 `validate_report(report_text, data)`。
-8. 追求一致性时：优先 `--save-snapshot`，后续一律 `--from-snapshot` 渲染。
+8. 追求一致性时：优先 `--save-snapshot`，后续一律 `--from-snapshot` 渲染；报告顶部会标明 snapshot 来源和指标截止日期。
 
 ## Python API
 
@@ -178,6 +221,13 @@ StockSight-Skill/
 `-- requirements.txt
 ```
 
+## 相关文档
+
+- [AGENTS.md](AGENTS.md) — 供 Hermes / Cursor / 通用 agent 使用的完整调用指南
+- [RELEASE.md](RELEASE.md) — 版本发布流程与检查清单
+- [CHANGELOG.md](CHANGELOG.md) — 版本变更记录
+- [CONTRIBUTING.md](CONTRIBUTING.md) — 开发贡献指南
+
 ## 注意
 
 报告中的风险等级、目标价、止损参考和操作建议只基于技术指标与公开信息整理，不构成投资建议。
@@ -205,11 +255,54 @@ StockSight-Skill is not just another quote script. It behaves like a compact mar
 - Signal detection for volume ratio, turnover, return, MACD, and RSI anomalies.
 - Data credibility labels for confirmed, derived, unavailable, and history-computed fields.
 - A final judgment section for detailed reports: stance, primary risk, and the next confirmation point.
+- Explicit report context: quote timestamp, technical cutoff date, and snapshot replay status.
 - Markdown for direct agent replies, HTML for polished reports.
 - Premium report visuals: risk gauge, signal radar, MACD/RSI, risk distribution, signal composition, and data-quality/credibility panels.
 - Optional news aggregation through Tavily or SerpAPI.
 - Reproducible snapshots to keep different agents aligned on the same data, signals, news, and quality notes.
 - Minimal test suite for the core rendering and data paths.
+
+
+## Install as Codex Skill
+
+### Method 1: Skill Installer (recommended)
+
+In a skill-installer-capable Codex or agent:
+
+```text
+install the stocksight skill
+```
+
+Or with a GitHub URL:
+
+```text
+install https://github.com/GearVoid/StockSight-Skill.git
+```
+
+### Method 2: Manual Install
+
+```bash
+# Clone the repository
+git clone https://github.com/GearVoid/StockSight-Skill.git
+
+# Install dependencies
+cd StockSight-Skill
+pip install -r requirements.txt
+```
+
+Then place the repository directory in Codex's skills directory (default ~/.codex/skills/), or configure your agent to reference the path.
+
+### Verify Installation
+
+```bash
+python scripts/report.py --from-snapshot examples/snapshot-sample.json --html --out reports/sample.html
+```
+
+If `reports/sample.html` is generated successfully, your installation is working. No network or API key required.
+
+### Other Agents (Hermes / Cursor / General)
+
+See [AGENTS.md](AGENTS.md) for the full CLI invocation guide, snapshot save-and-replay workflow, and Python API quick reference.
 
 ## Quick Start
 
@@ -268,7 +361,7 @@ If you need PDF, generate HTML first and export it from your own browser or syst
 5. Optionally fetch news with `search_configured_news(stocks)`.
 6. Render Markdown or HTML; detailed reports automatically include a final judgment and data credibility summary.
 7. Validate Markdown with `validate_report(report_text, data)`.
-8. When consistency matters, save a snapshot once and replay from `--from-snapshot`.
+8. When consistency matters, save a snapshot once and replay from `--from-snapshot`; report headers show the snapshot source and indicator cutoff.
 
 ## Public API
 
@@ -325,6 +418,13 @@ Environment variables are also supported:
 ```bash
 python -m unittest discover -s tests -v
 ```
+
+## Related Docs
+
+- [AGENTS.md](AGENTS.md) — Full invocation guide for Hermes / Cursor / general agents
+- [RELEASE.md](RELEASE.md) — Version release process and checklist
+- [CHANGELOG.md](CHANGELOG.md) — Version changelog
+- [CONTRIBUTING.md](CONTRIBUTING.md) — Contribution guide
 
 ## Disclaimer
 

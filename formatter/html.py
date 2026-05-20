@@ -17,6 +17,9 @@ from .base import (
     format_volume,
     format_volume_ratio,
     market_tag,
+    quote_timestamp,
+    snapshot_status,
+    technical_cutoff_date,
 )
 from .html_sections import (
     HEADER_GRADIENTS,
@@ -65,9 +68,13 @@ def render_html_report(data: ReportData, mode: str = "detailed", macd_result=Non
         if technical is None and macd_result is not None:
             from core import TechnicalAnalysis
             technical = TechnicalAnalysis(macd=macd_result)
-        visible_signals = visible_signals + (
-            technical_risk_signals(technical, visible_stocks[0].code) if technical else []
-        )
+        technical_signals = technical_risk_signals(technical, visible_stocks[0].code) if technical else []
+        existing = {(signal.risk_type, signal.description) for signal in visible_signals}
+        visible_signals = visible_signals + [
+            signal
+            for signal in technical_signals
+            if (signal.risk_type, signal.description) not in existing
+        ]
     else:
         technical = None
 
@@ -86,7 +93,9 @@ def render_html_report(data: ReportData, mode: str = "detailed", macd_result=Non
         _metric_card("异动信号", str(len(visible_signals)), tone),
         _metric_card("最高风险", fmt_signal_level(top_level) if top_level else "平稳", tone),
         _metric_card("数据源", _html(data.data_source)),
-        _metric_card("更新时间", _html(data.timestamp)),
+        _metric_card("行情时间", _html(quote_timestamp(data))),
+        _metric_card("指标截止", _html(technical_cutoff_date(data))),
+        _metric_card("Snapshot", _html(snapshot_status(data))),
     ]
 
     price_panel = ""

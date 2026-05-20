@@ -50,6 +50,7 @@ class ReportSnapshotTests(unittest.TestCase):
         self.assertIsNotNone(restored.technical)
         self.assertEqual(restored.technical.rsi.latest, 72.5)
         self.assertEqual(restored.technical.signals[0].indicator, "RSI")
+        self.assertEqual(restored.snapshot_source, str(snapshot))
         self.assertEqual(meta["mode"], "detailed")
         self.assertEqual(meta["provider"], "unit")
         self.assertEqual(meta["failed_codes"], ["bad-code"])
@@ -78,8 +79,13 @@ class ReportSnapshotTests(unittest.TestCase):
             )
 
             self.assertEqual(exit_code, 0)
-            self.assertIn("Sample (600001)", markdown.read_text(encoding="utf-8"))
-            self.assertIn("<!doctype html>", html.read_text(encoding="utf-8").lower())
+            markdown_text = markdown.read_text(encoding="utf-8")
+            html_text = html.read_text(encoding="utf-8")
+            self.assertIn("Sample (600001)", markdown_text)
+            self.assertIn("使用 Snapshot", markdown_text)
+            self.assertIn(str(snapshot), markdown_text)
+            self.assertIn("<!doctype html>", html_text.lower())
+            self.assertIn("Snapshot", html_text)
 
     def test_old_snapshot_without_technical_still_loads(self):
         with tempfile.TemporaryDirectory() as tmp:

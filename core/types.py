@@ -233,3 +233,6 @@ class ReportData:
 
     technical: Optional[TechnicalAnalysis] = None
     """技术指标分析（可选，详细单股报告使用）"""
+
+    snapshot_source: str = ""
+    """快照来源路径；为空表示本次报告不是从 snapshot 回放。"""

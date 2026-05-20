@@ -385,31 +385,120 @@ def render_data_credibility_section(stock: StockData, technical: object = None) 
     ])
 
 
+def quote_timestamp(data: object) -> str:
+    """Return the quote timestamp shown in reproducibility metadata."""
+    stocks = list(getattr(data, "stocks", []) or [])
+    timestamps = [str(getattr(stock, "timestamp", "") or "") for stock in stocks]
+    timestamps = [value for value in timestamps if value]
+    if timestamps:
+        return max(timestamps)
+    return str(getattr(data, "timestamp", "") or "—")
+
+
+def technical_cutoff_date(data: object) -> str:
+    """Return the latest historical indicator date, or — when unavailable."""
+    technical = getattr(data, "technical", None)
+    if not technical:
+        return "—"
+    dates: List[str] = []
+    macd = getattr(technical, "macd", None)
+    rsi = getattr(technical, "rsi", None)
+    dates.extend(str(value) for value in (getattr(macd, "dates", []) or []) if value)
+    dates.extend(str(value) for value in (getattr(rsi, "dates", []) or []) if value)
+    return max(dates) if dates else "—"
+
+
+def snapshot_status(data: object) -> str:
+    """Return whether this report was rendered from a snapshot."""
+    source = str(getattr(data, "snapshot_source", "") or "")
+    return f"是（{source}）" if source else "否"
+
+
+def render_report_context_section(data: object) -> str:
+    """Render Markdown report reproducibility metadata."""
+    rows = [[
+        quote_timestamp(data),
+        technical_cutoff_date(data),
+        snapshot_status(data),
+    ]]
+    return "\n".join([
+        f"## {EmojiMap.NOTE} 报告口径",
+        "",
+        render_table(
+            ["行情时间", "历史指标截止日期", "使用 Snapshot"],
+            rows,
+            col_align=["center", "center", "center"],
+        ),
+    ])
+
+
 def final_judgment(stock: StockData, signals: Sequence[object], technical: object = None) -> Tuple[str, str, str, str]:
-    """Return stance, tone class, main risk, next confirmation."""
+    """Return status label, tone class, main risk, next confirmation.
+
+    Status is one of: 偏强 / 过热 / 转弱 / 观察, based on signal levels + trend summary.
+    """
     max_level = max((int(getattr(sig, "level", 0) or 0) for sig in signals), default=0)
     top_signal = max(signals, key=lambda sig: int(getattr(sig, "level", 0) or 0), default=None)
 
-    if max_level >= 3:
-        stance = "高风险观望"
-        tone = "danger"
-    elif max_level >= 2:
-        stance = "偏强但需防回撤" if stock.change_percent >= 0 else "转弱风险升温"
-        tone = "warning"
-    elif max_level >= 1:
-        stance = "轻度异动观察"
-        tone = "watch"
-    else:
-        stance = "结构平稳"
-        tone = "healthy"
+    # Extract trend summary if available
+    trend = getattr(technical, "trend", None) if technical else None
+    macd_align = getattr(trend, "macd_alignment", "") or ""
+    has_divergence = bool(getattr(trend, "divergence", "") or "")
+    divergence_type = getattr(trend, "divergence", "") or ""
+    rsi_trend = getattr(trend, "rsi_trend", "") or ""
+    rsi_latest = getattr(getattr(technical, "rsi", None), "latest", None) if technical else None
 
+    # Determine status label from signal levels + trend data
+    if max_level >= 3:
+        status_label = "转弱"
+        tone = "danger"
+        stance = "转弱 — 风险升高"
+    elif has_divergence and divergence_type == "bearish":
+        status_label = "过热"
+        tone = "warning"
+        stance = "过热 — 背离警告"
+    elif rsi_latest is not None and rsi_latest >= 70:
+        status_label = "过热"
+        tone = "warning"
+        stance = "过热 — RSI超买"
+    elif rsi_trend in ("overbought_pullback",):
+        status_label = "观察"
+        tone = "watch"
+        stance = "观察 — RSI回落中"
+    elif max_level >= 2:
+        status_label = "转弱"
+        tone = "warning"
+        stance = "转弱 — 需关注回撤"
+    elif macd_align == "bullish" and max_level <= 1:
+        status_label = "偏强"
+        tone = "healthy"
+        stance = "偏强 — 动能偏多"
+    elif max_level >= 1:
+        status_label = "观察"
+        tone = "watch"
+        stance = "观察 — 轻度异动"
+    else:
+        status_label = "观察"
+        tone = "healthy"
+        stance = "观察 — 结构平稳"
+
+    # Main risk description
     if top_signal is None:
         main_risk = "暂无显著异动信号"
-        confirmation = "继续观察成交量、价格区间和 MACD/RSI 是否同步转强或转弱。"
     else:
         risk_type = str(getattr(top_signal, "risk_type", "未知信号"))
         description = str(getattr(top_signal, "description", "") or "")
-        main_risk = risk_type if not description else f"{risk_type}：{description}"
+        main_risk = f"{risk_type}：{description}" if description else risk_type
+
+    # Next confirmation
+    if has_divergence and divergence_type == "bearish":
+        confirmation = "观察价格是否跌破近期支撑，确认 MACD 是否同步转弱。若 DIF 下穿 DEA 形成死叉，进一步确认顶背离。"
+    elif rsi_latest is not None and rsi_latest >= 70:
+        confirmation = "确认 RSI 是否回落到中性区间（<60），并观察价格是否脱离追高区。"
+    elif macd_align == "bullish" and max_level <= 1:
+        confirmation = "确认上涨量能是否持续。若 MACD 柱收敛且量比回落，需关注短期调整可能。"
+    elif top_signal is not None:
+        risk_type = str(getattr(top_signal, "risk_type", ""))
         if "RSI" in risk_type:
             confirmation = "确认 RSI 是否回落到中性区间，并观察价格是否脱离追高区。"
         elif "MACD" in risk_type:
@@ -420,6 +509,8 @@ def final_judgment(stock: StockData, signals: Sequence[object], technical: objec
             confirmation = "确认换手是否伴随有效价格突破，避免高换手后的短线回撤。"
         else:
             confirmation = "确认后续成交额、振幅和收盘位置是否继续支持该信号。"
+    else:
+        confirmation = "继续观察成交量、价格区间和 MACD/RSI 是否同步转强或转弱。"
 
     confidence = credibility_level(stock, technical)
     return stance, tone, main_risk, f"{confirmation} 当前数据可信度：{confidence}。"
