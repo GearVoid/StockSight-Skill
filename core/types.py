@@ -73,6 +73,84 @@ class StockData:
     """原始数据（调试用，可选）"""
 
 
+
+@dataclass
+class HistoryBar:
+    """单日 OHLCV 数据点"""
+
+    date: str
+    """日期，格式 'YYYY-MM-DD'"""
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: int
+
+
+@dataclass
+class StockHistory:
+    """股票历史价格序列，用于技术指标计算"""
+
+    code: str
+    """股票代码"""
+    bars: List[HistoryBar] = field(default_factory=list)
+    """价格序列，按时间升序排列"""
+
+
+@dataclass
+class MACDResult:
+    """MACD 指标结果"""
+
+    dif: List[float] = field(default_factory=list)
+    """DIF = EMA12 - EMA26"""
+    dea: List[float] = field(default_factory=list)
+    """DEA = DIF 的 EMA9 信号线"""
+    macd: List[float] = field(default_factory=list)
+    """MACD 柱 = 2 * (DIF - DEA)"""
+    dates: List[str] = field(default_factory=list)
+    """对应日期"""
+
+
+@dataclass
+class RSIResult:
+    """RSI 指标结果"""
+
+    values: List[float] = field(default_factory=list)
+    """RSI 序列"""
+    dates: List[str] = field(default_factory=list)
+    """对应日期"""
+    period: int = 14
+    """RSI 周期"""
+
+    @property
+    def latest(self) -> Optional[float]:
+        """最新可用 RSI 值。"""
+        return self.values[-1] if self.values else None
+
+
+@dataclass
+class TechnicalSignal:
+    """技术指标信号，用于辅助判断和转换为风险信号"""
+
+    indicator: str
+    signal_type: str
+    level: int
+    direction: str
+    date: str
+    value: float
+    description: str
+
+
+@dataclass
+class TechnicalAnalysis:
+    """完整技术指标分析结果"""
+
+    macd: MACDResult = field(default_factory=MACDResult)
+    rsi: RSIResult = field(default_factory=RSIResult)
+    signals: List[TechnicalSignal] = field(default_factory=list)
+    notes: List[str] = field(default_factory=list)
+
+
 @dataclass
 class RiskSignal:
     """异动信号 — detector 输出给 formatter 的核心数据结构"""
@@ -120,3 +198,6 @@ class ReportData:
 
     news: List[NewsItem] = field(default_factory=list)
     """相关新闻列表（可选，由 NewsProvider 搜索填充）"""
+
+    technical: Optional[TechnicalAnalysis] = None
+    """技术指标分析（可选，详细单股报告使用）"""

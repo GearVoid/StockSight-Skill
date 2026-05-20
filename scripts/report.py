@@ -17,7 +17,20 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core import DataSourceError, NewsItem, ReportData, RiskSignal, StockData, detect, normalize_quote_data  # noqa: E402
+from core import (  # noqa: E402
+    DataSourceError,
+    MACDResult,
+    NewsItem,
+    RSIResult,
+    ReportData,
+    RiskSignal,
+    StockData,
+    TechnicalAnalysis,
+    TechnicalSignal,
+    analyze_technical_indicators,
+    detect,
+    normalize_quote_data,
+)
 from formatter import (  # noqa: E402
     render_detailed_report,
     render_html_report,
@@ -250,7 +263,22 @@ def _report_to_payload(data: ReportData) -> Dict[str, Any]:
         "data_source": data.data_source,
         "timestamp": data.timestamp,
         "news": [asdict(item) for item in data.news],
+        "technical": asdict(data.technical) if data.technical else None,
     }
+
+
+def _technical_from_payload(payload: Optional[Dict[str, Any]]) -> Optional[TechnicalAnalysis]:
+    if not payload:
+        return None
+    return TechnicalAnalysis(
+        macd=_dataclass_from_dict(MACDResult, payload.get("macd") or {}),
+        rsi=_dataclass_from_dict(RSIResult, payload.get("rsi") or {}),
+        signals=[
+            _dataclass_from_dict(TechnicalSignal, item)
+            for item in payload.get("signals", [])
+        ],
+        notes=list(payload.get("notes", [])),
+    )
 
 
 def _report_from_payload(payload: Dict[str, Any]) -> ReportData:
@@ -262,6 +290,7 @@ def _report_from_payload(payload: Dict[str, Any]) -> ReportData:
         data_source=str(payload.get("data_source", "snapshot")),
         timestamp=str(payload.get("timestamp", "")),
         news=[_dataclass_from_dict(NewsItem, item) for item in payload.get("news", [])],
+        technical=_technical_from_payload(payload.get("technical")),
     )
 
 
@@ -312,6 +341,14 @@ def _load_snapshot(path: Path) -> Tuple[ReportData, Dict[str, Any]]:
     return data, meta
 
 
+def _fetch_history_for_technical(stock: StockData):
+    if stock.market in ("sh", "sz"):
+        return EastMoneyDataSource().fetch_history(stock.code, days=80)
+    if stock.market == "us":
+        return YahooFinanceDataSource().fetch_history(stock.code, days=80)
+    return None
+
+
 def _build_live_report(args, codes: Sequence[str]) -> Tuple[ReportData, str, List[str], List[str]]:
     try:
         stock_map, failed, source_name = _fetch_quotes(codes, args.provider)
@@ -326,6 +363,15 @@ def _build_live_report(args, codes: Sequence[str]) -> Tuple[ReportData, str, Lis
     signals = detect(stocks, sector_benchmarks=_fetch_sector_benchmarks(stocks, args.provider))
     mode = _select_mode(args.mode, stocks)
     news = _fetch_news(stocks, args.news, args.news_results)
+
+    technical = None
+    if mode == "detailed" and len(stocks) == 1:
+        stock = stocks[0]
+        try:
+            history = _fetch_history_for_technical(stock)
+            technical = analyze_technical_indicators(history) if history and history.bars else None
+        except Exception:
+            technical = None
     data = ReportData(
         title=args.title or _default_title(stocks, mode),
         summary=_summary(stocks, len(signals)),
@@ -334,6 +380,7 @@ def _build_live_report(args, codes: Sequence[str]) -> Tuple[ReportData, str, Lis
         data_source=source_name,
         timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         news=news,
+        technical=technical,
     )
     return data, mode, failed, quality_notes
 
@@ -345,7 +392,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     failed: List[str] = []
     quality_notes: List[str] = []
-
     if args.from_snapshot:
         try:
             data, meta = _load_snapshot(args.from_snapshot)

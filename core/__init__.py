@@ -1,15 +1,40 @@
 ﻿# -*- coding: utf-8 -*-
-from .types import NewsItem, StockData, RiskSignal, ReportData
+from .types import (
+    HistoryBar,
+    MACDResult,
+    NewsItem,
+    RSIResult,
+    ReportData,
+    RiskSignal,
+    StockData,
+    StockHistory,
+    TechnicalAnalysis,
+    TechnicalSignal,
+)
 from .data_source import DataSource, DataSourceFactory, DataSourceError, FetchResult
 from .detector import detect, detect_anomalies, DetectorThresholds
 from .quality import assess_quote_quality, normalize_quote_data
+from .analysis import (
+    analyze_technical_indicators,
+    compute_macd,
+    compute_rsi,
+    detect_macd_signals,
+    detect_rsi_signals,
+    technical_risk_signals,
+)
 from .market import detect_market, detect_tencent_prefix, detect_sina_prefix, to_eastmoney_secid
 
 __all__ = [
     "NewsItem",
+    "HistoryBar",
+    "MACDResult",
+    "RSIResult",
+    "StockHistory",
     "StockData",
     "RiskSignal",
     "ReportData",
+    "TechnicalAnalysis",
+    "TechnicalSignal",
     "DataSource",
     "DataSourceFactory",
     "DataSourceError",
@@ -23,4 +48,10 @@ __all__ = [
     "detect_tencent_prefix",
     "detect_sina_prefix",
     "to_eastmoney_secid",
+    "analyze_technical_indicators",
+    "compute_macd",
+    "compute_rsi",
+    "detect_macd_signals",
+    "detect_rsi_signals",
+    "technical_risk_signals",
 ]

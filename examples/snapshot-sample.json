@@ -67,6 +67,31 @@
         "published_at": "2026-05-18",
         "snippet": "A static news item used only to demonstrate StockSight rendering."
       }
-    ]
+    ],
+    "technical": {
+      "macd": {
+        "dif": [0.0, 0.0, 0.12, 0.18, 0.21, 0.16],
+        "dea": [0.0, 0.0, 0.08, 0.13, 0.17, 0.18],
+        "macd": [0.0, 0.0, 0.08, 0.1, 0.08, -0.04],
+        "dates": ["2026-05-13", "2026-05-14", "2026-05-15", "2026-05-16", "2026-05-17", "2026-05-18"]
+      },
+      "rsi": {
+        "values": [0.0, 58.2, 63.4, 68.1, 71.6, 74.2],
+        "dates": ["2026-05-13", "2026-05-14", "2026-05-15", "2026-05-16", "2026-05-17", "2026-05-18"],
+        "period": 14
+      },
+      "signals": [
+        {
+          "indicator": "RSI",
+          "signal_type": "overbought",
+          "level": 2,
+          "direction": "bearish",
+          "date": "2026-05-18",
+          "value": 74.2,
+          "description": "超买：RSI 高于 70，需警惕追高风险。"
+        }
+      ],
+      "notes": []
+    }
   }
 }

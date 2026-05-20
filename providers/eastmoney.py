@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 STOCK_QUERY_URL = "https://push2.eastmoney.com/api/qt/stock/get"
 SECTOR_LIST_URL = "https://push2.eastmoney.com/api/qt/clist/get"
 SECTOR_CONSTIT_URL = "https://push2.eastmoney.com/api/qt/clist/get"
+KLINE_URL = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
 
 UT = "fa5fd1943c7b386f172d6893dbfba10b"
 HEADERS = {
@@ -191,6 +192,64 @@ class EastMoneyDataSource(DataSource):
                 "f129": concepts,
             },
         )
+
+    # ------------------------------------------------------------------
+    # 历史K线数据
+    # ------------------------------------------------------------------
+
+    def fetch_history(self, code: str, days: int = 80) -> "StockHistory":
+        """Fetch daily K-line data for an A-share stock.
+
+        Uses EastMoney's public K-line JSON API.
+        """
+        from core.types import StockHistory, HistoryBar
+
+        secid = _to_secid(code)
+        if secid is None:
+            return StockHistory(code=code)
+
+        params = {
+            "secid": secid,
+            "ut": "fa5fd1943c7b386f172d6893dbfba10b",
+            "fields1": "f1,f2,f3,f4,f5,f6",
+            "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
+            "klt": "101",  # daily
+            "fqt": "1",    # 前复权
+            "end": "20500101",
+            "lmt": str(days + 10),
+        }
+
+        try:
+            resp = self._session.get(
+                KLINE_URL,
+                params=params,
+                headers=HEADERS,
+                timeout=self._timeout,
+            )
+            data = resp.json()
+            if data.get("rc") != 0:
+                return StockHistory(code=code)
+
+            klines = data.get("data", {}).get("klines") or []
+            bars = []
+            for line in klines:
+                parts = line.split(",")
+                if len(parts) < 6:
+                    continue
+                bars.append(HistoryBar(
+                    date=parts[0],
+                    open=float(parts[1]),
+                    close=float(parts[2]),
+                    high=float(parts[3]),
+                    low=float(parts[4]),
+                    volume=int(parts[5]),
+                ))
+
+            return StockHistory(code=code, bars=bars)
+
+        except Exception as exc:
+            logger.debug("EastMoney K-line fetch failed: %s", exc)
+            return StockHistory(code=code)
 
     # ------------------------------------------------------------------
     # 板块数据

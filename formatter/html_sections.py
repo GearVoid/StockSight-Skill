@@ -16,12 +16,14 @@ from .html_utils import (
     _target_stock_and_signals,
 )
 from .html_charts import (
+    _macd_chart_html,
     _decision_card_html,
     _nav_html,
     _radar_html,
     _risk_distribution_html,
     _risk_gauge_html,
     _signal_composition_html,
+    _technical_indicators_html,
 )
 from .html_panels import (
     _news_html,
@@ -54,6 +56,7 @@ __all__ = [
     "_risk_gauge_html",
     "_risk_notes_html",
     "_signal_composition_html",
+    "_technical_indicators_html",
     "_stock_table_html",
     "_target_stock_and_signals",
     "_volume_price_html",

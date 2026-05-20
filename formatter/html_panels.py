@@ -71,11 +71,14 @@ def _risk_notes_html(signals: Sequence[RiskSignal]) -> str:
 
     cards = []
     for sig in signals:
+        detail = sig.description
+        if not sig.risk_type.endswith("技术信号"):
+            detail = f"{detail}（偏离度 {sig.deviation_value:.1f}{sig.deviation_unit}）。"
         cards.append(
             '<article class="risk-card">'
             f"<h3>{_html(fmt_signal_level(sig.level))}</h3>"
             f"<p><kbd>{_html(sig.risk_type)}</kbd> {render_signal_bar(sig.level)}</p>"
-            f"<p>{_html(sig.description)}（偏离度 {_html(f'{sig.deviation_value:.1f}{sig.deviation_unit}')}）。</p>"
+            f"<p>{_html(detail)}</p>"
             "</article>"
         )
     return '<section class="panel"><h2>风险提示</h2><div class="risk-grid">' + "".join(cards) + "</div></section>"

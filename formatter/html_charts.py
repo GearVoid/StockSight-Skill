@@ -336,6 +336,7 @@ _NAV_ITEMS = [
     ("#price-range", "📈", "价格"),
     ("#vol-price", "🔄", "量价"),
     ("#risk-gauge", "🎯", "仪表"),
+    ("#technical", "📈", "技术"),
     ("#risk-dist", "⚠️", "风险"),
     ("#radar", "📡", "雷达"),
     ("#quality", "✅", "数据"),
@@ -450,7 +451,7 @@ def _signal_composition_html(signals: Sequence[RiskSignal]) -> str:
         color = TYPE_COLORS[index % len(TYPE_COLORS)]
         related = [sig for sig in signals if sig.risk_type == risk_type]
         top_sig = max(related, key=lambda sig: sig.level)
-        deviation = f"{top_sig.deviation_value:.1f}{top_sig.deviation_unit}"
+        detail = _signal_detail_sentence(top_sig)
         rows.append(
             '<div class="bar-row">'
             f'<span><b style="background:{color};"></b>{_html(risk_type)}</span>'
@@ -464,7 +465,7 @@ def _signal_composition_html(signals: Sequence[RiskSignal]) -> str:
         cards.append(
             '<article class="signal-detail-card">'
             f'<div class="signal-detail-head"><span style="background:{color};"></span><strong>{_html(risk_type)}</strong><kbd>{_html(fmt_signal_level(level))}</kbd></div>'
-            f'<p>{_html(top_sig.description)}（偏离度 {deviation}）。</p>'
+            f'<p>{_html(detail)}</p>'
             '<dl>'
             f'<div><dt>影响维度</dt><dd>{_html(_risk_type_dimension(risk_type))}</dd></div>'
             f'<div><dt>观察重点</dt><dd>{_html(_risk_type_watchpoint(risk_type))}</dd></div>'
@@ -518,14 +519,21 @@ def _risk_distribution_explanations(signals: Sequence[RiskSignal]) -> List[str]:
         return []
     lines = []
     for sig in sorted(signals, key=lambda item: (-item.level, item.risk_type))[:4]:
+        detail = _signal_detail_sentence(sig)
         lines.append(
             '<div class="risk-explain-item">'
             f'<strong>{_html(sig.risk_type)}</strong>'
             f'<span>{_html(fmt_signal_level(sig.level))}</span>'
-            f'<p>{_html(sig.description)}，偏离度 {sig.deviation_value:.1f}{_html(sig.deviation_unit)}。</p>'
+            f'<p>{_html(detail)}</p>'
             '</div>'
         )
     return lines
+
+
+def _signal_detail_sentence(signal: RiskSignal) -> str:
+    if signal.risk_type.endswith("技术信号"):
+        return signal.description
+    return f"{signal.description}（偏离度 {signal.deviation_value:.1f}{signal.deviation_unit}）。"
 
 
 def _signal_composition_summary(composition: Sequence[Tuple[str, int, int]]) -> str:
@@ -555,3 +563,260 @@ def _risk_type_watchpoint(risk_type: str) -> str:
 
 # =============================================================================
 # 标的列表
+
+
+
+# =============================================================================
+# 技术指标图
+# =============================================================================
+
+def _technical_indicators_html(technical) -> str:
+    if technical is None:
+        return (
+            '<section class="panel" id="technical">'
+            "<h2>技术指标</h2>"
+            '<div class="empty-state">历史数据不足，暂无法计算 MACD / RSI。</div>'
+            "</section>"
+        )
+
+    return (
+        '<section class="panel" id="technical">'
+        "<h2>技术指标</h2>"
+        '<div class="technical-grid">'
+        + _macd_chart_inner_html(technical.macd)
+        + _rsi_panel_html(technical.rsi)
+        + "</div>"
+        + _technical_signal_summary_html(technical)
+        + "</section>"
+    )
+
+
+def _macd_chart_html(macd_result) -> str:
+    """Backward-compatible MACD-only panel."""
+    return (
+        '<section class="panel" id="macd">'
+        "<h2>MACD 指标</h2>"
+        + _macd_chart_inner_html(macd_result)
+        + _macd_signal_summary_html(macd_result)
+        + "</section>"
+    )
+
+
+def _macd_chart_inner_html(macd_result) -> str:
+    """Render an SVG MACD chart with histogram, DIF, DEA, and crossover markers."""
+    if not macd_result or not macd_result.dates:
+        return (
+            '<div class="empty-state">历史数据不足，无法计算MACD指标。</div>'
+        )
+
+    dif = macd_result.dif
+    dea = macd_result.dea
+    hist = macd_result.macd
+    dates = macd_result.dates
+
+    # Take last ~45 bars for display
+    display_len = min(45, len(dates))
+    dif = dif[-display_len:]
+    dea = dea[-display_len:]
+    hist = hist[-display_len:]
+    dates = dates[-display_len:]
+
+    # Find data range
+    all_vals = [v for v in dif + dea + hist if v != 0.0]
+    if not all_vals:
+        return (
+            '<div class="empty-state">MACD数据不足，继续观察。</div>'
+        )
+
+    max_val = max(all_vals)
+    min_val = min(all_vals)
+    val_range = max(abs(max_val), abs(min_val)) * 1.15
+    if val_range == 0:
+        val_range = 1.0
+
+    # Chart dimensions
+    chart_w = 720
+    chart_h = 300
+    pad_left = 50
+    pad_right = 20
+    pad_top = 10
+    pad_bottom = 30
+    plot_w = chart_w - pad_left - pad_right
+    plot_h = chart_h - pad_top - pad_bottom
+    zero_y = pad_top + plot_h / 2
+
+    def _val_to_y(v: float) -> float:
+        return zero_y - (v / val_range) * (plot_h / 2)
+
+    def _idx_to_x(i: int) -> float:
+        return pad_left + i * (plot_w / max(display_len - 1, 1))
+
+    # Histogram bars
+    bars = []
+    for i, h_val in enumerate(hist):
+        if h_val == 0.0:
+            continue
+        x = _idx_to_x(i)
+        bar_w = max(2, plot_w / display_len * 0.6)
+        if h_val > 0:
+            y = _val_to_y(h_val)
+            h = zero_y - y
+            color = "#ef3b2d"  # red for positive (bullish momentum)
+        else:
+            y = zero_y
+            h = _val_to_y(h_val) - zero_y
+            color = "#11a36a"  # green for negative (bearish momentum)
+        if h < 0.5:
+            h = 0.5
+        bars.append(
+            f'<rect x="{x - bar_w/2:.1f}" y="{y:.1f}" width="{bar_w:.1f}" '
+            f'height="{h:.1f}" fill="{color}" opacity="0.7"/>'
+        )
+
+    # DIF line
+    dif_points = []
+    for i, v in enumerate(dif):
+        if v == 0.0:
+            continue
+        dif_points.append(f"{_idx_to_x(i):.1f},{_val_to_y(v):.1f}")
+    dif_path = " ".join(dif_points) if dif_points else ""
+
+    # DEA line
+    dea_points = []
+    for i, v in enumerate(dea):
+        if v == 0.0:
+            continue
+        dea_points.append(f"{_idx_to_x(i):.1f},{_val_to_y(v):.1f}")
+    dea_path = " ".join(dea_points) if dea_points else ""
+
+    # Zero line
+    zero_line = (
+        f'<line x1="{pad_left}" y1="{zero_y:.1f}" '
+        f'x2="{pad_left + plot_w}" y2="{zero_y:.1f}" '
+        f'stroke="#94a3b8" stroke-width="1" stroke-dasharray="4 4"/>'
+    )
+
+    # Date labels (every ~10 bars)
+    date_labels = []
+    step = max(1, display_len // 5)
+    for i in range(0, display_len, step):
+        if i >= len(dates):
+            break
+        d = dates[i]
+        short_date = d[5:] if len(d) >= 10 else d  # MM-DD
+        date_labels.append(
+            f'<text x="{_idx_to_x(i):.1f}" y="{chart_h - 8}" '
+            f'text-anchor="middle" class="macd-date-label">{short_date}</text>'
+        )
+
+    # Legend
+    legend_y = pad_top + 8
+
+    return (
+        '<div class="macd-chart-container">'
+        f'<svg viewBox="0 0 {chart_w} {chart_h}" class="macd-svg" role="img" aria-label="MACD indicator chart">'
+        # Grid lines
+        + zero_line
+        + f'<line x1="{pad_left}" y1="{pad_top}" x2="{pad_left}" y2="{chart_h - pad_bottom}" stroke="#e5eaf2" stroke-width="1"/>'
+        + f'<line x1="{pad_left}" y1="{chart_h - pad_bottom:.1f}" x2="{pad_left + plot_w}" y2="{chart_h - pad_bottom:.1f}" stroke="#e5eaf2" stroke-width="1"/>'
+        # Bars
+        + "".join(bars)
+        # Lines
+        + (
+            f'<polyline points="{dif_path}" fill="none" stroke="#2563eb" stroke-width="1.8" stroke-linejoin="round"/>'
+            if dif_points else ""
+        )
+        + (
+            f'<polyline points="{dea_path}" fill="none" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/>'
+            if dea_points else ""
+        )
+        # Date labels
+        + "".join(date_labels)
+        # Legend
+        + f'<rect x="{pad_left}" y="{legend_y}" width="10" height="10" fill="#2563eb" rx="1"/>'
+        + f'<text x="{pad_left + 14}" y="{legend_y + 9}" class="macd-legend">DIF</text>'
+        + f'<rect x="{pad_left + 45}" y="{legend_y}" width="10" height="10" fill="#f59e0b" rx="1"/>'
+        + f'<text x="{pad_left + 59}" y="{legend_y + 9}" class="macd-legend">DEA</text>'
+        + f'<rect x="{pad_left + 95}" y="{legend_y}" width="10" height="10" fill="#ef3b2d" rx="1"/>'
+        + f'<text x="{pad_left + 109}" y="{legend_y + 9}" class="macd-legend">多头柱</text>'
+        + f'<rect x="{pad_left + 155}" y="{legend_y}" width="10" height="10" fill="#11a36a" rx="1"/>'
+        + f'<text x="{pad_left + 169}" y="{legend_y + 9}" class="macd-legend">空头柱</text>'
+        + "</svg>"
+        "</div>"
+    )
+
+
+def _macd_signal_summary_html(macd_result) -> str:
+    """Generate MACD signal summary text."""
+    from core.analysis import detect_macd_signals
+    signals = detect_macd_signals(macd_result)
+    if not signals:
+        return '<p class="muted">近期未检测到MACD金叉/死叉信号。</p>'
+
+    recent = [s for s in signals if s.date == signals[-1].date]
+    if not recent:
+        return '<p class="muted">近期未检测到MACD金叉/死叉信号。</p>'
+
+    sig = recent[0]
+    icon = "🔴" if sig.signal_type == "death_cross" else "🟢"
+    return (
+        '<div class="macd-signal-card">'
+        f'<strong>{icon} {_html(sig.description)}</strong>'
+        f'<em>触发日期：{sig.date}</em>'
+        '</div>'
+    )
+
+
+def _rsi_panel_html(rsi_result) -> str:
+    latest = rsi_result.latest if rsi_result else None
+    if latest is None:
+        return (
+            '<div class="rsi-panel">'
+            "<h3>RSI</h3>"
+            '<div class="empty-state">RSI 数据不足。</div>'
+            "</div>"
+        )
+
+    pos = max(0, min(100, latest))
+    if latest >= 70:
+        zone = "超买区"
+        tone = "bearish"
+    elif latest <= 30:
+        zone = "超卖区"
+        tone = "watch"
+    else:
+        zone = "中性区"
+        tone = "neutral"
+
+    return (
+        f'<div class="rsi-panel {tone}">'
+        f"<h3>RSI{rsi_result.period}</h3>"
+        f'<strong>{latest:.2f}</strong>'
+        f"<p>{_html(zone)}</p>"
+        '<div class="rsi-track">'
+        '<span class="rsi-zone low"></span><span class="rsi-zone mid"></span><span class="rsi-zone high"></span>'
+        f'<i style="left:{pos:.2f}%"></i>'
+        "</div>"
+        '<div class="rsi-labels"><span>0</span><span>30</span><span>70</span><span>100</span></div>'
+        "</div>"
+    )
+
+
+def _technical_signal_summary_html(technical) -> str:
+    if not technical.signals:
+        notes = "；".join(technical.notes) if technical.notes else "近期未检测到 MACD / RSI 技术信号。"
+        return f'<p class="muted">{_html(notes)}</p>'
+
+    cards = []
+    for signal in technical.signals[-4:]:
+        level = signal.level
+        tone = "bullish" if signal.direction == "bullish" else "bearish"
+        level_text = signal_level_label(level) if level else "辅助"
+        cards.append(
+            f'<div class="technical-signal {tone}">'
+            f'<span>{_html(signal.indicator)} · {_html(level_text)}</span>'
+            f'<strong>{_html(signal.description)}</strong>'
+            f'<em>{_html(signal.date)}</em>'
+            "</div>"
+        )
+    return '<div class="technical-signals">' + "".join(cards) + "</div>"

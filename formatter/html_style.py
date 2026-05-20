@@ -594,6 +594,117 @@ def _style() -> str:
     }
     .footer-version { font-size: 11px; color: var(--muted); opacity: 0.6; }
 
+    /* ---- 技术指标面板 ---- */
+    .technical-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+    .macd-chart-container {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+      padding: 10px;
+    }
+    .macd-svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .macd-date-label,
+    .macd-legend {
+      fill: var(--muted);
+      font-size: 10px;
+    }
+    .rsi-panel {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+      padding: 18px;
+      min-height: 170px;
+    }
+    .rsi-panel h3 {
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: .04em;
+    }
+    .rsi-panel strong {
+      display: block;
+      font-size: 38px;
+      line-height: 1;
+      color: var(--ink);
+    }
+    .rsi-panel p {
+      margin: 8px 0 18px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .rsi-panel.bearish strong { color: #c2412d; }
+    .rsi-panel.watch strong { color: #d79b2b; }
+    .rsi-track {
+      position: relative;
+      display: grid;
+      grid-template-columns: 30fr 40fr 30fr;
+      height: 12px;
+      border-radius: 999px;
+      overflow: visible;
+      background: #edf1f7;
+    }
+    .rsi-zone { min-width: 0; }
+    .rsi-zone.low { background: #f7d88b; border-radius: 999px 0 0 999px; }
+    .rsi-zone.mid { background: #dce7f5; }
+    .rsi-zone.high { background: #f0a199; border-radius: 0 999px 999px 0; }
+    .rsi-track i {
+      position: absolute;
+      top: 50%;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--ink);
+      border: 3px solid white;
+      box-shadow: 0 2px 8px rgba(23,32,51,.25);
+      transform: translate(-50%, -50%);
+    }
+    .rsi-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .technical-signals {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .technical-signal {
+      border: 1px solid var(--line);
+      border-left: 4px solid #94a3b8;
+      border-radius: 10px;
+      background: #fff;
+      padding: 12px 14px;
+    }
+    .technical-signal.bullish { border-left-color: #16a34a; }
+    .technical-signal.bearish { border-left-color: #c2412d; }
+    .technical-signal span,
+    .technical-signal em {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-style: normal;
+    }
+    .technical-signal strong {
+      display: block;
+      margin: 5px 0;
+      color: var(--ink);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
     /* ---- 价格区间卡片 ---- */
     .price-range-card { padding: 8px 0; }
     .range-labels {

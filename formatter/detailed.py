@@ -17,7 +17,7 @@
 
 from typing import List, Optional
 
-from core import RiskSignal, StockData, ReportData
+from core import RiskSignal, StockData, ReportData, technical_risk_signals
 from .base import (
     EmojiMap,
     change_emoji,
@@ -71,9 +71,15 @@ def _format_signals_text(signals: List[RiskSignal], stock: StockData) -> str:
     for sig in signals:
         symbol = risk_level_symbol(sig.level)
         parts.append(f"### {sig.risk_type}（{symbol}）")
-        parts.append(f"{sig.description}（偏离度 {sig.deviation_value:.1f}{sig.deviation_unit}）。")
+        parts.append(_signal_detail_text(sig))
         parts.append("")
     return "\n".join(parts)
+
+
+def _signal_detail_text(sig: RiskSignal) -> str:
+    if sig.risk_type.endswith("技术信号"):
+        return sig.description
+    return f"{sig.description}（偏离度 {sig.deviation_value:.1f}{sig.deviation_unit}）。"
 
 
 def _risk_warnings(signals: List[RiskSignal]) -> str:
@@ -82,7 +88,7 @@ def _risk_warnings(signals: List[RiskSignal]) -> str:
     for i, sig in enumerate(signals):
         symbol = risk_level_symbol(sig.level)
         lines.append(f"{symbol} {render_badge(sig.risk_type)} {render_signal_bar(sig.level)}")
-        lines.append(f"{sig.description}（偏离度 {sig.deviation_value:.1f}{sig.deviation_unit}）。")
+        lines.append(_signal_detail_text(sig))
         lines.append("")
     return "\n".join(lines)
 
@@ -109,6 +115,51 @@ def _render_news_details(data: ReportData) -> str:
 
 def _render_data_quality(stocks: List[StockData]) -> str:
     return render_data_quality_section(stocks)
+
+
+def _combined_signals(data: ReportData, stock: StockData, signals: List[RiskSignal]) -> List[RiskSignal]:
+    technical_signals = technical_risk_signals(data.technical, stock.code) if data.technical else []
+    return signals + technical_signals
+
+
+def _render_technical_section(data: ReportData) -> str:
+    technical = data.technical
+    if technical is None:
+        return "## 📈 技术指标辅助\n\n历史数据不足，暂无法计算 MACD / RSI。"
+
+    macd_status = "数据不足"
+    if technical.macd and technical.macd.dates:
+        latest_dif = next((value for value in reversed(technical.macd.dif) if value != 0), 0.0)
+        latest_dea = next((value for value in reversed(technical.macd.dea) if value != 0), 0.0)
+        latest_hist = next((value for value in reversed(technical.macd.macd) if value != 0), 0.0)
+        bias = "偏多" if latest_dif > latest_dea else "偏空"
+        macd_status = f"{bias}（DIF {latest_dif:.4f} / DEA {latest_dea:.4f} / 柱 {latest_hist:.4f}）"
+
+    rsi_value = technical.rsi.latest if technical.rsi else None
+    if rsi_value is None:
+        rsi_status = "数据不足"
+    elif rsi_value >= 70:
+        rsi_status = f"{rsi_value:.2f}（超买区）"
+    elif rsi_value <= 30:
+        rsi_status = f"{rsi_value:.2f}（超卖区）"
+    else:
+        rsi_status = f"{rsi_value:.2f}（中性区）"
+
+    signal_text = "暂无明显技术指标信号"
+    if technical.signals:
+        signal_text = "；".join(signal.description for signal in technical.signals[-3:])
+
+    return (
+        "## 📈 技术指标辅助\n\n"
+        + render_table(
+            ["指标", "状态"],
+            [
+                ["MACD", macd_status],
+                [f"RSI{technical.rsi.period if technical.rsi else 14}", rsi_status],
+                ["近期信号", signal_text],
+            ],
+        )
+    )
 
 
 def _dimension_table(stock: StockData, signals: List[RiskSignal]) -> str:
@@ -176,7 +227,7 @@ def render_detailed_report(data: ReportData) -> str:
         return f"{EmojiMap.REPORT} 无可用数据生成深度报告"
 
     stock = target_stock
-    signals = target_signals
+    signals = _combined_signals(data, stock, target_signals)
     stock_label = f"{stock.name} ({stock.code})"
     amplitude = _calc_amplitude(stock)
 
@@ -196,10 +247,13 @@ def render_detailed_report(data: ReportData) -> str:
     )
     if signals:
         top = signals[0]
-        summary_text += (
-            f"，{top.risk_type}（偏离度 "
-            f"{top.deviation_value:.1f}{top.deviation_unit}）"
-        )
+        if top.risk_type.endswith("技术信号"):
+            summary_text += f"，{top.risk_type}"
+        else:
+            summary_text += (
+                f"，{top.risk_type}（偏离度 "
+                f"{top.deviation_value:.1f}{top.deviation_unit}）"
+            )
     parts.append(summary_text)
     parts.append("")
 
@@ -256,7 +310,11 @@ def render_detailed_report(data: ReportData) -> str:
     parts.append(f"- {EmojiMap.TURNOVER} 换手率：{format_turnover(stock.turnover_rate)}")
     parts.append("")
 
-    # 8. 异动分析
+    # 8. 技术指标辅助
+    parts.append(_render_technical_section(data))
+    parts.append("")
+
+    # 9. 异动分析
     if signals:
         parts.append(f"## {EmojiMap.ANALYSIS} 异动分析")
         parts.append("")
@@ -265,7 +323,7 @@ def render_detailed_report(data: ReportData) -> str:
             parts.append(f"### {symbol} {sig.risk_type}")
             parts.append(f"{render_badge(fmt_signal_level(sig.level))} {render_signal_bar(sig.level)}")
             parts.append("")
-            parts.append(f"{sig.description}（偏离度 {sig.deviation_value:.1f}{sig.deviation_unit}）。")
+            parts.append(_signal_detail_text(sig))
             parts.append("")
             # 补充可能的分析
             if "量比" in sig.risk_type:
@@ -275,7 +333,7 @@ def render_detailed_report(data: ReportData) -> str:
                 parts.append("- 板块内部轮动")
                 parts.append("")
 
-    # 9. 风险提示
+    # 10. 风险提示
     if signals:
         parts.append(f"## {EmojiMap.RISK} 风险提示")
         parts.append("")
@@ -286,7 +344,7 @@ def render_detailed_report(data: ReportData) -> str:
         parts.append("当前未检测到显著风险信号。")
         parts.append("")
 
-    # 10. 操作建议
+    # 11. 操作建议
     parts.append(f"## {EmojiMap.CONCLUSION} 操作建议")
     parts.append("")
     max_level = max((s.level for s in signals), default=0)
@@ -311,18 +369,18 @@ def render_detailed_report(data: ReportData) -> str:
     parts.append("> 以上参考数值基于技术指标计算，不构成投资建议。")
     parts.append("")
 
-    # 11. 关注维度汇总表
+    # 12. 关注维度汇总表
     parts.append(f"### 关注维度")
     parts.append("")
     parts.append(_dimension_table(stock, signals))
     parts.append("")
 
-    # 12. 相关资讯（可选，详细模式用段落格式）
+    # 13. 相关资讯（可选，详细模式用段落格式）
     if data.news:
         parts.append(_render_news_details(data))
         parts.append("")
 
-    # 13. 数据来源
+    # 14. 数据来源
     parts.append(f"{EmojiMap.DATA_SOURCE} 数据来源：{data.data_source} | {EmojiMap.CLOCK} {data.timestamp}")
 
     return "\n".join(parts)
