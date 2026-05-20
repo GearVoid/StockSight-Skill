@@ -1207,8 +1207,60 @@ def _style() -> str:
       a { color: #1a1a1a; text-decoration: underline; }
       footer { margin-top: 8px; }
     }
-    """
+
+    /* === Trend Summary Cards === */
+    .trend-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 12px 0;
+    }
+    .trend-card {
+      flex: 1 1 280px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: #f8faff;
+      border: 1px solid #e0e6f0;
+    }
+    .trend-card.bullish { border-left: 3px solid #16794c; background: #f0faf4; }
+    .trend-card.bearish { border-left: 3px solid #c2412d; background: #fef4f2; }
+    .trend-card.watch   { border-left: 3px solid #d79b2b; background: #fffbf0; }
+    .trend-card.neutral { border-left: 3px solid #94a3b8; background: #f8fafc; }
+    .trend-icon {
+      font-size: 20px;
+      line-height: 1.4;
+      flex-shrink: 0;
+      width: 28px;
+      text-align: center;
+    }
+    .trend-body { flex: 1; min-width: 0; }
+    .trend-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 2px;
+    }
+    .trend-body strong {
+      display: block;
+      font-size: 13px;
+      line-height: 1.4;
+      margin-bottom: 2px;
+    }
+    .trend-body em {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      font-style: normal;
+    }
+""
 
 
 # =============================================================================
 # 主渲染入口
+    """

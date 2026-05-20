@@ -622,6 +622,7 @@ def _technical_indicators_html(technical) -> str:
         + _macd_chart_inner_html(technical.macd)
         + _rsi_panel_html(technical.rsi)
         + "</div>"
+        + _technical_trend_summary_html(technical)
         + _technical_signal_summary_html(technical)
         + "</section>"
     )
@@ -836,6 +837,104 @@ def _rsi_panel_html(rsi_result) -> str:
         '<div class="rsi-labels"><span>0</span><span>30</span><span>70</span><span>100</span></div>'
         "</div>"
     )
+
+
+
+def _technical_trend_summary_html(technical) -> str:
+    """Render trend summary cards for MACD alignment, RSI trend, and divergence."""
+    if not technical or not technical.trend:
+        return ""
+
+    t = technical.trend
+    cards = []
+
+    # MACD alignment card
+    if t.macd_alignment:
+        al_tone_map = {
+            "bullish": "bullish",
+            "bearish": "bearish",
+            "turning": "watch",
+            "neutral": "neutral",
+        }
+        al_icon_map = {
+            "bullish": "⇈",
+            "bearish": "⇊",
+            "turning": "⇄",
+            "neutral": "→",
+        }
+        tone = al_tone_map.get(t.macd_alignment, "neutral")
+        icon = al_icon_map.get(t.macd_alignment, "→")
+        bar_status = {
+            "expanding": "扩张",
+            "contracting": "收敛",
+            "flat": "持平",
+        }.get(t.macd_histogram_trend, "")
+        cards.append(
+            f'<div class="trend-card {tone}">'
+            f'<span class="trend-icon">{icon}</span>'
+            f'<div class="trend-body">'
+            f'<span class="trend-label">MACD 排列</span>'
+            f'<strong>{_html(t.macd_alignment_desc)}</strong>'
+            f'<em>柱状图趋势：{bar_status}</em>'
+            f'</div>'
+            f'</div>'
+        )
+
+    # RSI trend card
+    if t.rsi_trend:
+        rsi_tone_map = {
+            "overbought_pullback": "bearish",
+            "oversold_bounce": "bullish",
+            "uptrend": "bullish",
+            "downtrend": "bearish",
+            "heated": "watch",
+            "cooling": "watch",
+            "neutral": "neutral",
+        }
+        rsi_icon_map = {
+            "overbought_pullback": "↘",
+            "oversold_bounce": "↗",
+            "uptrend": "↑",
+            "downtrend": "↓",
+            "heated": "△",
+            "cooling": "▽",
+            "neutral": "→",
+        }
+        tone = rsi_tone_map.get(t.rsi_trend, "neutral")
+        icon = rsi_icon_map.get(t.rsi_trend, "→")
+        cards.append(
+            f'<div class="trend-card {tone}">'
+            f'<span class="trend-icon">{icon}</span>'
+            f'<div class="trend-body">'
+            f'<span class="trend-label">RSI 趋势</span>'
+            f'<strong>{_html(t.rsi_trend_desc)}</strong>'
+            f'</div>'
+            f'</div>'
+        )
+
+    # Divergence card
+    if t.divergence:
+        tone = "bearish" if t.divergence == "bearish" else "bullish"
+        icon = "⚠" if t.divergence == "bearish" else "✦"
+        cards.append(
+            f'<div class="trend-card {tone}">'
+            f'<span class="trend-icon">{icon}</span>'
+            f'<div class="trend-body">'
+            f'<span class="trend-label">背离检测</span>'
+            f'<strong>{_html(t.divergence_desc)}</strong>'
+            f'</div>'
+            f'</div>'
+        )
+
+    if not cards:
+        return ""
+
+    return (
+        '<div class="trend-summary">'
+        + "".join(cards)
+        + "</div>"
+    )
+
 
 
 def _technical_signal_summary_html(technical) -> str:

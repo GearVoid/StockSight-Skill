@@ -151,17 +151,37 @@ def _render_technical_section(data: ReportData) -> str:
     if technical.signals:
         signal_text = "；".join(signal.description for signal in technical.signals[-3:])
 
-    return (
-        "## 📈 技术指标辅助\n\n"
-        + render_table(
-            ["指标", "状态"],
-            [
-                ["MACD", macd_status],
-                [f"RSI{technical.rsi.period if technical.rsi else 14}", rsi_status],
-                ["近期信号", signal_text],
-            ],
-        )
-    )
+    # Build trend summary table
+    trend_rows = []
+    if technical.trend:
+        t = technical.trend
+        if t.macd_alignment_desc:
+            trend_rows.append(["MACD 排列", t.macd_alignment_desc])
+        if t.macd_histogram_trend:
+            hist_labels = {"expanding": "扩张 📈", "contracting": "收敛 📉", "flat": "持平"}
+            trend_rows.append(["MACD 柱", hist_labels.get(t.macd_histogram_trend, t.macd_histogram_trend)])
+        if t.rsi_trend_desc:
+            trend_rows.append(["RSI 趋势", t.rsi_trend_desc])
+        if t.divergence_desc:
+            icon = "🔴" if t.divergence == "bearish" else "🟢"
+            trend_rows.append(["背离检测", f"{icon} {t.divergence_desc}"])
+
+    parts = ["## 📈 技术指标辅助\n"]
+    parts.append(render_table(
+        ["指标", "状态"],
+        [
+            ["MACD", macd_status],
+            [f"RSI{technical.rsi.period if technical.rsi else 14}", rsi_status],
+            ["近期信号", signal_text],
+        ],
+    ))
+    if trend_rows:
+        parts.append("\n### 趋势摘要\n")
+        parts.append(render_table(
+            ["维度", "判断"],
+            trend_rows,
+        ))
+    return "\n".join(parts)
 
 
 def _dimension_table(stock: StockData, signals: List[RiskSignal]) -> str:
