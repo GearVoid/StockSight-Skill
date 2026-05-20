@@ -116,8 +116,16 @@ python scripts/report.py --from-snapshot snapshots/002346.json --html --out repo
 无网络试用：
 
 ```bash
-python scripts/report.py --from-snapshot examples/snapshot-sample.json --html --out reports/sample.html --markdown-out outputs/sample.md
+python scripts/report.py --from-snapshot examples/a-share-detailed.json --html --out reports/sample.html --markdown-out outputs/sample.md
 ```
+
+批量生成固定视觉样例：
+
+```bash
+python scripts/render_examples.py
+```
+
+这会把 `examples/` 中的 A 股、美股、无技术指标、高风险四个固定 snapshot 渲染到 `reports/examples/` 和 `outputs/examples/`，适合每次改 formatter 后做 HTML 对比。
 
 需要 PDF 时，先生成 HTML，再用你自己的浏览器或系统 PDF 工具导出。项目内部不再维护 PDF 导出脚本，避免不同系统字体导致中文乱码。
 
@@ -347,8 +355,16 @@ python scripts/report.py --from-snapshot snapshots/002346.json --html --out repo
 Try without network access:
 
 ```bash
-python scripts/report.py --from-snapshot examples/snapshot-sample.json --html --out reports/sample.html --markdown-out outputs/sample.md
+python scripts/report.py --from-snapshot examples/a-share-detailed.json --html --out reports/sample.html --markdown-out outputs/sample.md
 ```
+
+Render all fixed visual examples:
+
+```bash
+python scripts/render_examples.py
+```
+
+This renders the A-share, US equity, no-technical-data, and high-risk snapshots from `examples/` into `reports/examples/` and `outputs/examples/` for formatter comparison.
 
 If you need PDF, generate HTML first and export it from your own browser or system PDF tools. The project no longer ships a PDF exporter because system fonts made Chinese output unreliable.
 
