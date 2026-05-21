@@ -15,7 +15,7 @@ Every report uses this order:
 7. Optional detailed analysis section
 8. Risk section
 9. Optional action suggestions
-10. Optional related news in `<details>`
+10. Optional company announcements / hard information and related market news in `<details>`
 11. Data source line
 
 ## Premium Markdown Elements
@@ -25,7 +25,7 @@ Use only lightweight, portable HTML:
 | Element | Purpose | Example |
 |------|------|------|
 | `<kbd>...</kbd>` | Compact badges for risk type, market state, and labels | `<kbd>量比偏离</kbd>` |
-| `<details><summary>...</summary>` | Collapsible news section | `<summary>🗞️ 相关资讯</summary>` |
+| `<details><summary>...</summary>` | Collapsible context section | `<summary>🗞️ 公司信息与资讯</summary>` |
 | `▰▱` bars | Signal/risk intensity | `▰▰▰▱▱` |
 
 Avoid CSS, scripts, external images, and complex HTML tables.
@@ -45,6 +45,7 @@ HTML reports rendered by `render_html_report(data, mode)` may use built-in CSS o
 Detailed reports should also include:
 
 - A report context section near the top with quote timestamp, historical indicator cutoff date, and snapshot replay status.
+- The report context should include a compact source chain when available: live quote provider, historical provider, fallback status, and historical bar count.
 - A final judgment section with stance, primary risk, and next confirmation point.
 - A data credibility section that marks fields as confirmed, derived, unavailable, or history-computed.
 - Unavailable or derived fields must be shown transparently and should not create direct risk signals by themselves.
@@ -109,13 +110,18 @@ When a report mixes markets, sort rows as A-share, Hong Kong, then US. Hong Kong
 
 ## News Section
 
-Render news only when `ReportData.news` is non-empty.
+Render news only when `ReportData.news` is non-empty. Split items by category:
+
+- Company announcements and hard information: announcements, filings, earnings previews, risk notices, major events, shareholder changes, investor Q&A.
+- Market news and sentiment: generic financial news, anomaly commentary, topic context.
+
+Search-backed hard information must label source credibility in the snippet or source. Prefer exchange, CnInfo, Eastmoney announcements, company sites, and investor-relations sources ahead of generic market media.
 
 Standard reports:
 
 ```markdown
 <details>
-<summary>🗞️ 相关资讯</summary>
+<summary>🗞️ 公司信息与资讯</summary>
 
 | 来源 | 标题 | 时间 |
 |:---|:---|:---|
@@ -128,7 +134,7 @@ Detailed reports:
 
 ```markdown
 <details>
-<summary>🗞️ 相关资讯</summary>
+<summary>🗞️ 公司信息与资讯</summary>
 
 [新浪财经] 恒生电子成交活跃（05-18 10:00）
   盘中成交显著放大，资金关注度提升
@@ -138,9 +144,9 @@ Detailed reports:
 
 ## Failure Handling
 
-- Missing news API key: skip news.
-- News provider error: skip news and keep the core report.
-- Empty news results: skip news.
+- Missing news API key: skip context/news.
+- News provider error: skip context/news and keep the core report.
+- Empty news results: skip context/news.
 - Missing market metric: show `—`.
 - Suspicious market metric: show `—` and add a data-quality note.
 - No usable quote data: return a short unavailable-data message.
@@ -158,3 +164,10 @@ Operation suggestions, target prices, and stop-loss values are technical referen
 - Bearish technical signals may be converted into `RiskSignal` entries for risk distribution and signal composition.
 - Bullish technical signals are displayed as auxiliary context and must not reduce existing risk scores.
 - Snapshot replay must use the saved `ReportData.technical` payload instead of refetching history or recomputing indicators.
+
+## Risk Model Notes
+
+- Separate anomaly strength from risk severity.
+- A-share limit-up moves default to strong anomaly / warning, not danger.
+- Upgrade upward moves to danger only when extreme volume ratio, high turnover, bearish divergence, or similar weakening evidence confirms overheating.
+- Limit-down or sharp falling moves may remain danger by direction.

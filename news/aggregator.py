@@ -3,18 +3,22 @@
 
 from __future__ import annotations
 
-from typing import Iterable, List, Optional, Sequence, Set
+from typing import Iterable, List, Optional, Sequence, Set, Tuple
 
 from core import NewsItem, StockData
 from core.config import get_active_provider, get_api_key
 from .base import NewsProvider
+from .hard_info import (
+    classify_category,
+    classify_source,
+    default_query_types,
+    rank_items,
+    relevance_score,
+    tag_item,
+)
 
 
-NEWS_QUERY_TYPES = {
-    "公告": "{name} {code} 公告 交易所",
-    "财报": "{name} {code} 财报 业绩 净利润",
-    "异动": "{name} {code} 股票 异动 涨停 跌停",
-}
+NEWS_QUERY_TYPES = default_query_types()
 
 
 def create_configured_news_provider() -> Optional[NewsProvider]:
@@ -44,12 +48,11 @@ def _dedupe_key(item: NewsItem) -> str:
     return f"{item.source}|{item.title}".strip().lower()
 
 
-def _tag_snippet(kind: str, item: NewsItem) -> NewsItem:
-    if not item.snippet:
-        item.snippet = f"{kind}相关资讯。"
-    elif not item.snippet.startswith(f"[{kind}]"):
-        item.snippet = f"[{kind}] {item.snippet}"
-    return item
+def _tag_snippet(kind: str, item: NewsItem, stock: Optional[StockData] = None) -> NewsItem:
+    category = classify_category(item, kind)
+    source_label = classify_source(item)
+    score = relevance_score(item, stock, category) if stock else 0
+    return tag_item(item, category, source_label, score)
 
 
 class NewsAggregator:
@@ -69,11 +72,15 @@ class NewsAggregator:
 
         kinds = list(query_types or NEWS_QUERY_TYPES.keys())
         seen: Set[str] = set()
-        items: List[NewsItem] = []
+        stock_items: List[Tuple[StockData, NewsItem]] = []
 
-        per_query_limit = max(1, min(3, max_results))
+        per_query_limit = max(1, min(2, max_results))
+        collection_budget = max(max_results, max_results * 3)
         for stock in stocks:
+            stock_budget = len(stock_items) + collection_budget
             for kind in kinds:
+                if len(stock_items) >= stock_budget:
+                    break
                 template = NEWS_QUERY_TYPES.get(kind)
                 if not template:
                     continue
@@ -83,11 +90,15 @@ class NewsAggregator:
                     if not key or key in seen:
                         continue
                     seen.add(key)
-                    items.append(_tag_snippet(kind, item))
-                    if len(items) >= max_results:
-                        return items
+                    stock_items.append((stock, _tag_snippet(kind, item, stock)))
 
-        return items
+        ranked: List[NewsItem] = []
+        for stock in stocks:
+            ranked.extend(rank_items(
+                (item for item_stock, item in stock_items if item_stock.code == stock.code),
+                stock,
+            ))
+        return ranked[:max_results]
 
 
 def search_configured_news(

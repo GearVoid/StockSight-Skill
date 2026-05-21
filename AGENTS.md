@@ -33,6 +33,8 @@ Provider selection:
 If a provider call fails, `--provider auto` tries the next available provider.
 
 For detailed A-share reports, technical history uses EastMoney first and then falls back to public Sina/Tencent daily K-lines when EastMoney does not return enough bars.
+Reports should expose the data-source chain near the top so another agent can see the live quote provider, historical provider, fallback status, and historical K-line bar count.
+When `--news` is enabled, StockSight searches A-share hard information first: announcements, filings, earnings previews, risk notices, major events, and shareholder changes. Generic market news is only fallback context.
 
 ## Snapshot Workflow
 
@@ -62,7 +64,7 @@ Render fixed formatter comparison examples:
 python scripts/render_examples.py
 ```
 
-When rendering from `--from-snapshot`, do not fetch live quotes, re-run news search, re-detect signals, or recompute MACD/RSI. The snapshot is the source of truth.
+When rendering from `--from-snapshot`, do not fetch live quotes, re-run news search, re-detect signals, or recompute MACD/RSI/BOLL/KDJ. The snapshot is the source of truth.
 
 ## Python API
 
@@ -100,9 +102,11 @@ result = validate_report(markdown, data)
 
 ## Report Shape
 
-Standard reports cover market pulse, risk visualization, stock table, risk warnings, operation suggestions, optional news, and data source.
+Standard reports cover market pulse, risk visualization, stock table, risk warnings, operation suggestions, optional company announcements/hard information, optional market news, and data source.
 
-Detailed reports cover report context, final judgment, core dashboard, risk visualization, data credibility, price overview, volume/price metrics, MACD/RSI/BOLL/KDJ trend summary, anomaly analysis, risk warnings, operation suggestions, optional news, and data source.
+Detailed reports cover report context, final judgment, core dashboard, risk visualization, data credibility, price overview, volume/price metrics, MACD/RSI/BOLL/KDJ trend summary, anomaly analysis, risk warnings, operation suggestions, optional company announcements/hard information, optional market news, and data source.
+
+Risk model note: A-share limit-up moves are strong anomalies, not automatic danger signals. Escalate upward moves to danger only when extreme volume ratio, high turnover, bearish divergence, or other weakening evidence confirms overheating. Limit-down or sharp falling moves remain higher-risk by direction.
 
 ## Key Files
 

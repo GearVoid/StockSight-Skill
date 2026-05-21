@@ -12,7 +12,9 @@ from .base import (
     format_price,
     format_turnover,
     format_volume_ratio,
+    anomaly_breakdown_rows,
     render_count_bar,
+    render_score_bar,
     render_signal_bar,
     risk_level_counts,
     risk_type_counts,
@@ -21,8 +23,7 @@ from .base import (
 from .html_utils import (
     LEVEL_COLORS,
     TYPE_COLORS,
-    _calculate_risk_score,
-    _get_risk_status,
+    calculate_dual_risk_score,
     _html,
     _level_pie_gradient,
     _pie_gradient,
@@ -31,8 +32,9 @@ from .html_utils import (
 # =============================================================================
 
 def _risk_gauge_html(top_level: int, signals: Sequence[RiskSignal]) -> str:
-    score = _calculate_risk_score(signals)
-    status_text, status_color, range_text = _get_risk_status(score)
+    dual = calculate_dual_risk_score(signals)
+    score = dual.risk_score
+    status_text, status_color, range_text = dual.risk_label, dual.risk_color, dual.risk_range
 
     cx, cy = 260, 252
     arc_r = 174
@@ -97,11 +99,11 @@ def _risk_gauge_html(top_level: int, signals: Sequence[RiskSignal]) -> str:
         + '</svg>'
         '</div>'
         + '<aside class="gauge-score-card">'
-        + '<span>综合风险得分</span>'
+        + '<span>下行风险得分</span>'
         + f'<strong style="color:{status_color};">{score}</strong>'
         + f'<b style="color:{status_color};">{_html(status_text)}</b>'
         + f'<em>风险区间：{_html(range_text)}</em>'
-        + '<p>分数由当前技术异动信号等级和数量推导，仅用于风险观察。</p>'
+        + f'<p>异动强度：{dual.anomaly_score} / 100 · {_html(dual.anomaly_label)}。上涨异动不会自动等同高风险。</p>'
         + '</aside>'
         + '<div class="gauge-legend-pro">'
         + "".join(legend)
@@ -401,6 +403,7 @@ _NAV_ITEMS = [
     ("#price-range", "📈", "价格"),
     ("#vol-price", "🔄", "量价"),
     ("#risk-gauge", "🎯", "仪表"),
+    ("#anomaly-breakdown", "📊", "异动"),
     ("#technical", "📈", "技术"),
     ("#risk-dist", "⚠️", "风险"),
     ("#radar", "📡", "雷达"),
@@ -437,6 +440,7 @@ def _risk_distribution_html(signals: Sequence[RiskSignal]) -> str:
 
     dominant_level = max(counts, key=lambda level: counts[level]) if total else 0
     max_level = max((sig.level for sig in signals), default=0)
+    dual = calculate_dual_risk_score(signals)
     concentration = max_count / total * 100 if total else 0
     danger_ratio = counts[3] / total * 100 if total else 0
     risk_summary = _risk_distribution_summary(max_level, danger_ratio, concentration, total)
@@ -458,9 +462,10 @@ def _risk_distribution_html(signals: Sequence[RiskSignal]) -> str:
 
     pie_style = _level_pie_gradient(counts)
     insight_cards = [
+        ("异动强度", f"{dual.anomaly_score}", dual.anomaly_label),
+        ("下行风险", f"{dual.risk_score}", dual.risk_label),
         ("最高等级", fmt_signal_level(max_level), _risk_level_hint(max_level)),
         ("风险集中度", f"{concentration:.0f}%", f"主要集中在{signal_level_label(dominant_level)}级信号"),
-        ("危险占比", f"{danger_ratio:.0f}%", "危险信号越集中，短线不确定性越高"),
         ("触发信号", f"{total} 个", "来自当前检测到的技术异动维度"),
     ]
     return (
@@ -490,6 +495,35 @@ def _risk_distribution_html(signals: Sequence[RiskSignal]) -> str:
         "</div>"
         '<div class="risk-explain-list">'
         + "".join(_risk_distribution_explanations(signals))
+        + "</div>"
+        "</section>"
+    )
+
+
+def _anomaly_breakdown_html(signals: Sequence[RiskSignal]) -> str:
+    rows = anomaly_breakdown_rows(signals)
+    cards = []
+    for dimension, performance, score, note in rows:
+        width = max(0, min(score, 100))
+        tone = "high" if score >= 75 else "medium" if score >= 45 else "low"
+        cards.append(
+            f'<article class="anomaly-card {tone}">'
+            '<div class="anomaly-card-head">'
+            f'<span>{_html(dimension)}</span>'
+            f'<strong>{score}</strong>'
+            '</div>'
+            f'<div class="anomaly-bar"><i style="width:{width}%;"></i></div>'
+            f'<div class="anomaly-meta"><b>{_html(performance)}</b><em>{render_score_bar(score)}</em></div>'
+            f'<p>{_html(note)}</p>'
+            '</article>'
+        )
+
+    return (
+        '<section class="panel" id="anomaly-breakdown">'
+        "<h2>异动强度拆解</h2>"
+        '<p class="section-brief">这张表只解释“今天哪里不寻常”，不直接等同于下行风险。上涨异动、放量、技术信号和公告事件会分别计入。</p>'
+        '<div class="anomaly-breakdown-grid">'
+        + "".join(cards)
         + "</div>"
         "</section>"
     )

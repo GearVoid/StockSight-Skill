@@ -240,6 +240,13 @@ def render_count_bar(count: int, max_count: int, width: int = 5) -> str:
     return "▰" * filled + "▱" * (width - filled)
 
 
+def render_score_bar(score: int, width: int = 5) -> str:
+    """Render a 0-100 score as a compact Unicode bar."""
+    bounded = max(0, min(int(round(score)), 100))
+    filled = 0 if bounded == 0 else max(1, round(bounded / 100 * width))
+    return "▰" * filled + "▱" * (width - filled)
+
+
 def risk_level_counts(signals: Iterable[object]) -> Dict[int, int]:
     """统计关注/警告/危险三个风险等级的信号数量。"""
     counts = Counter(getattr(sig, "level", 0) for sig in signals)
@@ -294,6 +301,60 @@ def render_signal_composition(signals: Sequence[object]) -> str:
         ["信号类型", "数量", "最高等级", "分布"],
         rows,
         col_align=["left", "right", "left", "left"],
+    )
+
+
+def anomaly_breakdown_rows(signals: Sequence[object]) -> List[Tuple[str, str, int, str]]:
+    """Return anomaly-strength contribution rows for Markdown/HTML.
+
+    The values are intentionally transparent and heuristic. They explain why a
+    report feels unusual without claiming that every unusual move is dangerous.
+    """
+    rows = [
+        ("价格波动", "未触发", 0, "涨跌幅未出现显著偏离"),
+        ("成交活跃", "未触发", 0, "量比/成交活跃度未出现显著放大"),
+        ("筹码交换", "未触发", 0, "换手率不极端"),
+        ("技术共振", "未触发", 0, "MACD/RSI/BOLL/KDJ 暂无显著共振"),
+        ("事件驱动", "未检索/未触发", 0, "暂无公告或硬信息放大"),
+    ]
+
+    def _set(index: int, performance: str, score: int, note: str):
+        old = rows[index]
+        if score > old[2]:
+            rows[index] = (old[0], performance, score, note)
+
+    for signal in signals:
+        risk_type = str(getattr(signal, "risk_type", "") or "")
+        description = str(getattr(signal, "description", "") or "")
+        level = int(getattr(signal, "level", 0) or 0)
+        score = {0: 0, 1: 40, 2: 65, 3: 90}.get(level, min(level * 25, 100))
+        summary = description or risk_type or "已触发"
+
+        if any(keyword in risk_type for keyword in ("收益", "涨跌", "价格")):
+            _set(0, fmt_signal_level(level), score, summary)
+        elif any(keyword in risk_type for keyword in ("量比", "成交")):
+            _set(1, fmt_signal_level(level), score, summary)
+        elif "换手" in risk_type:
+            _set(2, fmt_signal_level(level), score, summary)
+        elif any(keyword in risk_type for keyword in ("MACD", "RSI", "BOLL", "KDJ")):
+            _set(3, fmt_signal_level(level), score, summary)
+        elif any(keyword in risk_type for keyword in ("公告", "风险提示", "监管", "业绩", "退市", "减持")):
+            _set(4, fmt_signal_level(level), score, summary)
+
+    return rows
+
+
+def render_anomaly_breakdown(signals: Sequence[object]) -> str:
+    """Render Markdown anomaly-strength breakdown."""
+    rows = anomaly_breakdown_rows(signals)
+    table_rows = [
+        [dimension, performance, f"{score} {render_score_bar(score)}", note]
+        for dimension, performance, score, note in rows
+    ]
+    return render_table(
+        ["维度", "当前表现", "异动贡献", "说明"],
+        table_rows,
+        col_align=["left", "left", "left", "left"],
     )
 
 
@@ -401,11 +462,19 @@ def technical_cutoff_date(data: object) -> str:
     if not technical:
         return "—"
     dates: List[str] = []
-    macd = getattr(technical, "macd", None)
-    rsi = getattr(technical, "rsi", None)
-    dates.extend(str(value) for value in (getattr(macd, "dates", []) or []) if value)
-    dates.extend(str(value) for value in (getattr(rsi, "dates", []) or []) if value)
+    for indicator_name in ("macd", "rsi", "boll", "kdj"):
+        indicator = getattr(technical, indicator_name, None)
+        dates.extend(str(value) for value in (getattr(indicator, "dates", []) or []) if value)
     return max(dates) if dates else "—"
+
+
+def source_chain_summary(data: object) -> str:
+    """Return compact quote/history source notes for reproducible reports."""
+    notes = [str(note) for note in (getattr(data, "source_notes", []) or []) if str(note)]
+    if notes:
+        return "；".join(notes)
+    source = str(getattr(data, "data_source", "") or "")
+    return f"实时行情：{source}" if source else "—"
 
 
 def snapshot_status(data: object) -> str:
@@ -419,15 +488,16 @@ def render_report_context_section(data: object) -> str:
     rows = [[
         quote_timestamp(data),
         technical_cutoff_date(data),
+        source_chain_summary(data),
         snapshot_status(data),
     ]]
     return "\n".join([
         f"## {EmojiMap.NOTE} 报告口径",
         "",
         render_table(
-            ["行情时间", "历史指标截止日期", "使用 Snapshot"],
+            ["行情时间", "历史指标截止日期", "数据来源链", "使用 Snapshot"],
             rows,
-            col_align=["center", "center", "center"],
+            col_align=["center", "center", "left", "center"],
         ),
     ])
 
@@ -605,14 +675,28 @@ def render_news_details_standard(news: Sequence[NewsItem]) -> str:
     """渲染标准模式可折叠新闻区块。"""
     if not news:
         return ""
-    news_headers = ["来源", "标题", "时间"]
-    news_rows = [[n.source or "—", n.title or "—", n.published_at or "—"] for n in news[:5]]
+    hard_items, market_items = split_news_items(news)
+    sections = []
+    if hard_items:
+        sections.append(("公司公告与硬信息", hard_items[:5]))
+    if market_items:
+        sections.append(("市场资讯与舆情", market_items[:5]))
+
+    chunks = ["<details>", f"<summary>{EmojiMap.NEWS} 公司信息与资讯</summary>", ""]
     return "\n".join([
-        "<details>",
-        f"<summary>{EmojiMap.NEWS} 相关资讯</summary>",
-        "",
-        render_table(news_headers, news_rows),
-        "",
+        *chunks,
+        *[
+            "\n".join([
+                f"### {title}",
+                "",
+                render_table(
+                    ["来源", "标题", "时间"],
+                    [[n.source or "—", n.title or "—", n.published_at or "—"] for n in items],
+                ),
+                "",
+            ])
+            for title, items in sections
+        ],
         "</details>",
     ])
 
@@ -621,18 +705,40 @@ def render_news_details_detailed(news: Sequence[NewsItem]) -> str:
     """渲染详细模式可折叠新闻区块。"""
     if not news:
         return ""
+    hard_items, market_items = split_news_items(news)
     lines = [
         "<details>",
-        f"<summary>{EmojiMap.NEWS} 相关资讯</summary>",
+        f"<summary>{EmojiMap.NEWS} 公司信息与资讯</summary>",
         "",
     ]
-    for item in news[:5]:
-        title = item.title or "—"
-        source = item.source or "—"
-        time = f"（{item.published_at}）" if item.published_at else ""
-        lines.append(f"[{source}] {title}{time}")
-        if item.snippet:
-            lines.append(f"  {EmojiMap.NOTE} {item.snippet}")
+    for section_title, items in (("公司公告与硬信息", hard_items), ("市场资讯与舆情", market_items)):
+        if not items:
+            continue
+        lines.append(f"### {section_title}")
+        lines.append("")
+        for item in items[:5]:
+            title = item.title or "—"
+            source = item.source or "—"
+            time = f"（{item.published_at}）" if item.published_at else ""
+            lines.append(f"[{source}] {title}{time}")
+            if item.snippet:
+                lines.append(f"  {EmojiMap.NOTE} {item.snippet}")
+            lines.append("")
         lines.append("")
     lines.append("</details>")
     return "\n".join(lines)
+
+
+def _news_category(item: NewsItem) -> str:
+    text = f"{item.snippet} {item.title} {item.source}".lower()
+    for category in ("风险提示", "业绩预告", "财报", "重大事项", "持股变动", "互动问答", "公告"):
+        if f"[{category}]".lower() in text or category.lower() in text:
+            return category
+    return "新闻"
+
+
+def split_news_items(news: Sequence[NewsItem]):
+    hard_categories = {"公告", "财报", "业绩预告", "风险提示", "重大事项", "持股变动", "互动问答"}
+    hard_items = [item for item in news if _news_category(item) in hard_categories]
+    market_items = [item for item in news if item not in hard_items]
+    return hard_items, market_items

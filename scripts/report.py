@@ -269,6 +269,7 @@ def _report_to_payload(data: ReportData) -> Dict[str, Any]:
         "timestamp": data.timestamp,
         "news": [asdict(item) for item in data.news],
         "technical": asdict(data.technical) if data.technical else None,
+        "source_notes": list(data.source_notes),
     }
 
 
@@ -299,6 +300,7 @@ def _report_from_payload(payload: Dict[str, Any]) -> ReportData:
         timestamp=str(payload.get("timestamp", "")),
         news=[_dataclass_from_dict(NewsItem, item) for item in payload.get("news", [])],
         technical=_technical_from_payload(payload.get("technical")),
+        source_notes=list(payload.get("source_notes", [])),
     )
 
 
@@ -357,16 +359,23 @@ def _has_enough_history(history) -> bool:
 def _fetch_history_for_technical(stock: StockData):
     if stock.market in ("sh", "sz"):
         last_history = None
+        last_source = "历史行情：不可用"
         for source in (EastMoneyDataSource(), AShareHistoryDataSource()):
             history = source.fetch_history(stock.code, days=80)
+            source_name = source.name()
+            if isinstance(source, AShareHistoryDataSource):
+                source_name = "Sina/Tencent fallback"
             if _has_enough_history(history):
-                return history
+                return history, f"历史行情：{source_name}（{len(history.bars)}条）"
             if history and history.bars:
                 last_history = history
-        return last_history
+                last_source = f"历史行情：{source_name}（{len(history.bars)}条，不足）"
+        return last_history, last_source
     if stock.market == "us":
-        return YahooFinanceDataSource().fetch_history(stock.code, days=80)
-    return None
+        history = YahooFinanceDataSource().fetch_history(stock.code, days=80)
+        note = f"历史行情：Yahoo Finance（{len(history.bars)}条）" if history and history.bars else "历史行情：Yahoo Finance（不可用）"
+        return history, note
+    return None, "历史行情：暂不支持该市场"
 
 
 def _build_live_report(args, codes: Sequence[str]) -> Tuple[ReportData, str, List[str], List[str]]:
@@ -385,12 +394,15 @@ def _build_live_report(args, codes: Sequence[str]) -> Tuple[ReportData, str, Lis
     news = _fetch_news(stocks, args.news, args.news_results)
 
     technical = None
+    source_notes = [f"实时行情：{source_name}"]
     if mode == "detailed" and len(stocks) == 1:
         stock = stocks[0]
         try:
-            history = _fetch_history_for_technical(stock)
+            history, history_note = _fetch_history_for_technical(stock)
+            source_notes.append(history_note)
             technical = analyze_technical_indicators(history) if history and history.bars else None
         except Exception:
+            source_notes.append("历史行情：获取失败")
             technical = None
     data = ReportData(
         title=args.title or _default_title(stocks, mode),
@@ -401,6 +413,7 @@ def _build_live_report(args, codes: Sequence[str]) -> Tuple[ReportData, str, Lis
         timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         news=news,
         technical=technical,
+        source_notes=source_notes,
     )
     return data, mode, failed, quality_notes
 
