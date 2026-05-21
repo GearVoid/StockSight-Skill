@@ -1,5 +1,6 @@
 ﻿# -*- coding: utf-8 -*-
 import unittest
+from unittest.mock import patch
 
 from news.aggregator import (
     NewsAggregator,
@@ -7,6 +8,7 @@ from news.aggregator import (
     _tag_snippet,
     create_configured_news_provider,
 )
+from news.hard_info import classify_category, classify_source, is_hard_info
 from news.base import NewsProvider
 from core import NewsItem
 from tests.fixtures import sample_stock
@@ -46,12 +48,13 @@ class TagSnippetTests(unittest.TestCase):
     def test_adds_kind_tag_to_empty_snippet(self):
         item = NewsItem(title="T", source="S", url="", snippet="")
         result = _tag_snippet("公告", item)
-        self.assertEqual(result.snippet, "公告相关资讯。")
+        self.assertIn("[公告]", result.snippet)
+        self.assertIn("来源可信度", result.snippet)
 
     def test_prepends_kind_tag_to_existing_snippet(self):
         item = NewsItem(title="T", source="S", url="", snippet="some content")
         result = _tag_snippet("异动", item)
-        self.assertEqual(result.snippet, "[异动] some content")
+        self.assertEqual(result.snippet, "[新闻] some content")
 
     def test_does_not_double_tag(self):
         item = NewsItem(title="T", source="S", url="", snippet="[公告] already tagged")
@@ -114,8 +117,22 @@ class NewsAggregatorTests(unittest.TestCase):
         self.assertGreaterEqual(len(result), 1)
         self.assertIn("000001", provider.last_query)
 
+    def test_aggregator_ranks_hard_info_before_generic_news(self):
+        provider = FakeNewsProvider([
+            NewsItem(title="普通新闻", source="某网站", url="https://x.com/news"),
+            NewsItem(title="平安银行年度报告公告", source="东方财富", url="https://data.eastmoney.com/notices/detail/000001/a.html"),
+        ])
+        agg = NewsAggregator(provider=provider)
+        stock = sample_stock(name="平安银行", code="000001")
+
+        result = agg.search_for_stocks([stock], max_results=2, query_types=["公告"])
+
+        self.assertEqual(result[0].title, "平安银行年度报告公告")
+        self.assertTrue(is_hard_info(result[0]))
+
     def test_create_configured_news_provider_returns_none_when_not_configured(self):
-        provider = create_configured_news_provider()
+        with patch("news.aggregator.get_active_provider", return_value=None):
+            provider = create_configured_news_provider()
         self.assertIsNone(provider)
 
 
@@ -261,3 +278,21 @@ class SerpapiProviderTests(unittest.TestCase):
     def test_name_is_serpapi(self):
         provider = SerpapiNewsProvider(api_key="test-key")
         self.assertEqual(provider.name(), "SerpAPI")
+
+
+class HardInfoClassificationTests(unittest.TestCase):
+    def test_classifies_cninfo_as_high_confidence_source(self):
+        item = NewsItem(
+            title="年度报告",
+            source="巨潮资讯",
+            url="https://www.cninfo.com.cn/new/disclosure/detail",
+        )
+
+        self.assertEqual(classify_source(item), "巨潮资讯")
+        self.assertEqual(classify_category(item), "财报")
+
+    def test_classifies_risk_tip_from_title(self):
+        item = NewsItem(title="关于股票交易风险提示公告", source="上交所")
+
+        self.assertEqual(classify_category(item), "风险提示")
+        self.assertTrue(is_hard_info(item))

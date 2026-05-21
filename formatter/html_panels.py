@@ -16,6 +16,7 @@ from .base import (
     market_tag,
     metric_quality_notes,
     render_signal_bar,
+    split_news_items,
 )
 from .html_utils import _html
 
@@ -230,33 +231,42 @@ def _news_html(data: ReportData) -> str:
     if not data.news:
         return ""
 
-    items = []
-    for item in data.news[:5]:
-        title = _html(item.title or "—")
-        source = _html(item.source or "—")
-        time = _html(item.published_at) if item.published_at else ""
-        snippet = f"<p>{_html(item.snippet)}</p>" if item.snippet else ""
-        if item.url:
-            title_html = f'<a href="{_html(item.url)}">{title}</a>'
-        else:
-            title_html = title
+    def _render_items(items):
+        rendered = []
+        for item in items[:5]:
+            title = _html(item.title or "—")
+            source = _html(item.source or "—")
+            time = _html(item.published_at) if item.published_at else ""
+            snippet = f"<p>{_html(item.snippet)}</p>" if item.snippet else ""
+            if item.url:
+                title_html = f'<a href="{_html(item.url)}">{title}</a>'
+            else:
+                title_html = title
 
-        items.append(
-            '<article class="timeline-item">'
-            '<div class="timeline-dot"></div>'
-            '<div class="timeline-content">'
-            f"<h3>{title_html}</h3>"
-            f'<div class="timeline-meta"><span>{source}</span>{f" · <span>{time}</span>" if time else ""}</div>'
-            f"{snippet}"
-            "</div>"
-            "</article>"
-        )
+            rendered.append(
+                '<article class="timeline-item">'
+                '<div class="timeline-dot"></div>'
+                '<div class="timeline-content">'
+                f"<h3>{title_html}</h3>"
+                f'<div class="timeline-meta"><span>{source}</span>{f" · <span>{time}</span>" if time else ""}</div>'
+                f"{snippet}"
+                "</div>"
+                "</article>"
+            )
+        return "".join(rendered)
+
+    hard_items, market_items = split_news_items(data.news)
+    sections = []
+    if hard_items:
+        sections.append("<h3>公司公告与硬信息</h3>" + _render_items(hard_items))
+    if market_items:
+        sections.append("<h3>市场资讯与舆情</h3>" + _render_items(market_items))
 
     return (
         '<section class="panel" id="news">'
-        "<h2>相关资讯</h2>"
+        "<h2>公司信息与资讯</h2>"
         '<div class="timeline">'
-        + "".join(items)
+        + "".join(sections)
         + "</div>"
         "</section>"
     )

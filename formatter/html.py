@@ -19,12 +19,14 @@ from .base import (
     market_tag,
     quote_timestamp,
     snapshot_status,
+    source_chain_summary,
     technical_cutoff_date,
 )
 from .html_sections import (
     HEADER_GRADIENTS,
     VERSION,
     _decision_card_html,
+    _anomaly_breakdown_html,
     _final_judgment_html,
     _html,
     _metric_card,
@@ -43,6 +45,7 @@ from .html_sections import (
     _technical_indicators_html,
     _volume_price_html,
 )
+from .html_utils import calculate_dual_risk_score
 from .html_style import _style
 
 def render_html_report(data: ReportData, mode: str = "detailed", macd_result=None) -> str:
@@ -79,6 +82,7 @@ def render_html_report(data: ReportData, mode: str = "detailed", macd_result=Non
         technical = None
 
     top_level = max((sig.level for sig in visible_signals), default=0)
+    dual_score = calculate_dual_risk_score(visible_signals)
     tone = "danger" if top_level >= 3 else ""
     first_stock = visible_stocks[0]
     subtitle = data.summary or (
@@ -92,7 +96,10 @@ def render_html_report(data: ReportData, mode: str = "detailed", macd_result=Non
         _metric_card("覆盖标的", str(len(visible_stocks))),
         _metric_card("异动信号", str(len(visible_signals)), tone),
         _metric_card("最高风险", fmt_signal_level(top_level) if top_level else "平稳", tone),
+        _metric_card("异动强度", f"{dual_score.anomaly_score} · {_html(dual_score.anomaly_label)}", tone),
+        _metric_card("下行风险", f"{dual_score.risk_score} · {_html(dual_score.risk_label)}", tone),
         _metric_card("数据源", _html(data.data_source)),
+        _metric_card("来源链", _html(source_chain_summary(data))),
         _metric_card("行情时间", _html(quote_timestamp(data))),
         _metric_card("指标截止", _html(technical_cutoff_date(data))),
         _metric_card("Snapshot", _html(snapshot_status(data))),
@@ -156,6 +163,7 @@ def render_html_report(data: ReportData, mode: str = "detailed", macd_result=Non
         + volume_price_section
         + detailed_only
         + (_technical_indicators_html(technical) if selected_mode == "detailed" else "")
+        + _anomaly_breakdown_html(visible_signals)
         + _risk_distribution_html(visible_signals)
         + _signal_composition_html(visible_signals)
         + _quality_html(visible_stocks, technical)

@@ -30,6 +30,7 @@ from .base import (
     render_metric_strip,
     render_report_context_section,
     render_news_details_standard,
+    render_anomaly_breakdown,
     render_risk_distribution,
     render_signal_bar,
     render_signal_composition,
@@ -184,6 +185,10 @@ def render_standard_report(data: ReportData) -> str:
     parts.append(f"## {EmojiMap.AMOUNT} 风险可视化")
     parts.append("")
     parts.append(render_risk_distribution(data.signals))
+    parts.append("")
+    parts.append("### 异动强度拆解")
+    parts.append("")
+    parts.append(render_anomaly_breakdown(data.signals))
     parts.append("")
     parts.append("### 信号构成")
     parts.append("")

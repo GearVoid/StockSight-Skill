@@ -1,6 +1,6 @@
 ﻿# StockSight-Skill
 
-[![Version](https://img.shields.io/badge/version-v0.2.0-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.2.0)
+[![Version](https://img.shields.io/badge/version-v0.3.0-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.3.0)
 [![Python](https://img.shields.io/badge/python-3.9%2B-2563eb)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
 [![Skill Ready](https://img.shields.io/badge/Codex%20Skill-ready-f97316)](SKILL.md)
@@ -25,9 +25,10 @@ StockSight-Skill 不是“再写一个行情脚本”。它更像一个小型盘
 - **可信度先行**：明显异常字段会显示为 `—`，并标明“可确认 / 推导 / 不可用 / 历史计算”，避免坏数据带偏结论。
 - **最终判断区**：详细报告会给出核心结论、主要风险和下一步确认点，让 agent 输出更像分析员而不是表格搬运工。
 - **报告口径锁定**：顶部明确行情时间、历史指标截止日期、是否使用 snapshot，减少跨 agent 输出漂移。
+- **来源链可见**：报告顶部展示实时行情源、历史行情源、fallback 状态和历史 K 线条数。
 - **双输出**：Markdown 适合 agent 直接回复，HTML 适合正式报告和分享。
 - **轻量可视化**：风险仪表盘、信号雷达、MACD/RSI/BOLL/KDJ、风险分布、信号构成、数据完整性与可信度面板。
-- **可选资讯聚合**：配置 Tavily 或 SerpAPI 后补充公告、财报、异动新闻。
+- **硬信息优先**：配置 Tavily 或 SerpAPI 后优先检索公告、财报、业绩预告、风险提示，再用市场新闻兜底。
 - **可复现快照**：用 snapshot 固定行情、信号、资讯和质量提示，减少不同 agent 之间的自由发挥。
 - **最小测试套件**：覆盖 formatter、validator、质量清洗、市场识别、Yahoo provider、snapshot 回放。
 
@@ -135,10 +136,14 @@ python scripts/render_examples.py
 2. 清洗行情：`normalize_quote_data(stocks)`。
 3. 检测异动：`detect(stocks)` 或 `detect_anomalies(stocks)`。
 4. 详细单股报告可计算技术指标：A 股优先用 EastMoney 历史 K 线，并自动回退到 Sina/Tencent K 线；美股用 Yahoo history，输出 MACD / RSI / BOLL / KDJ。
-5. 可选资讯：`search_configured_news(stocks)`。
+5. 可选资讯：`search_configured_news(stocks)` 会先跑公告/财报/业绩/风险提示 query 模板，按交易所、巨潮、东方财富、公司官网等可信源优先排序，再补充市场新闻。
 6. 渲染报告：Markdown 用 `render_standard_report` / `render_detailed_report`，HTML 用 `render_html_report`；详细报告会自动生成最终判断和数据可信度说明。
 7. 校验输出：Markdown 用 `validate_report(report_text, data)`。
 8. 追求一致性时：优先 `--save-snapshot`，后续一律 `--from-snapshot` 渲染；报告顶部会标明 snapshot 来源和指标截止日期。
+
+### 风险口径
+
+StockSight 把“异动强度”和“风险等级”分开处理。A 股上涨涨停默认是强异动/警告，不直接等于危险；只有叠加极端量比、高换手、跌停、顶背离或其他明显转弱证据时才进入危险级。风险分数只用于技术观察，不构成投资建议。
 
 ## Python API
 
@@ -168,6 +173,8 @@ from providers import TencentDataSource, YahooFinanceDataSource
 ## 配置
 
 资讯是可选能力。没有 API key 时，StockSight-Skill 会跳过资讯区块，但仍然生成核心行情和风险报告。
+
+启用资讯后，报告会分成“公司公告与硬信息”和“市场资讯与舆情”。当前版本不引入重型公告 SDK，而是通过 Tavily / SerpAPI 执行更严格的 A 股 query 模板，并给结果打上公告、财报、业绩预告、风险提示等标签。交易所、巨潮资讯、东方财富公告、公司官网等来源会优先展示；普通新闻只作为兜底背景。
 
 参考 `config.example.json` 创建 `.sightconfig.json`：
 
@@ -244,7 +251,7 @@ StockSight-Skill/
 
 # StockSight-Skill
 
-[![Version](https://img.shields.io/badge/version-v0.2.0-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.2.0)
+[![Version](https://img.shields.io/badge/version-v0.3.0-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.3.0)
 [![Python](https://img.shields.io/badge/python-3.9%2B-2563eb)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
 [![Skill Ready](https://img.shields.io/badge/Codex%20Skill-ready-f97316)](SKILL.md)
@@ -264,9 +271,10 @@ StockSight-Skill is not just another quote script. It behaves like a compact mar
 - Data credibility labels for confirmed, derived, unavailable, and history-computed fields.
 - A final judgment section for detailed reports: stance, primary risk, and the next confirmation point.
 - Explicit report context: quote timestamp, technical cutoff date, and snapshot replay status.
+- Visible data-source chain: quote provider, historical provider, fallback status, and historical bar count.
 - Markdown for direct agent replies, HTML for polished reports.
 - Premium report visuals: risk gauge, signal radar, MACD/RSI/BOLL/KDJ, risk distribution, signal composition, and data-quality/credibility panels.
-- Optional news aggregation through Tavily or SerpAPI.
+- Hard-information-first context: announcements, filings, earnings previews, and risk notices before generic market news.
 - Reproducible snapshots to keep different agents aligned on the same data, signals, news, and quality notes.
 - Minimal test suite for the core rendering and data paths.
 
@@ -374,10 +382,14 @@ If you need PDF, generate HTML first and export it from your own browser or syst
 2. Normalize quotes with `normalize_quote_data(stocks)`.
 3. Detect anomalies with `detect(stocks)` or `detect_anomalies(stocks)`.
 4. For detailed single-stock A-share or US reports, compute MACD / RSI / BOLL / KDJ from provider history. A-share history uses EastMoney first, then Sina/Tencent fallback K-lines.
-5. Optionally fetch news with `search_configured_news(stocks)`.
+5. Optionally fetch context with `search_configured_news(stocks)`. StockSight runs announcement, filing, earnings, and risk-notice queries first, ranks exchange/CnInfo/Eastmoney/company sources ahead of generic news, then uses market news as fallback.
 6. Render Markdown or HTML; detailed reports automatically include a final judgment and data credibility summary.
 7. Validate Markdown with `validate_report(report_text, data)`.
 8. When consistency matters, save a snapshot once and replay from `--from-snapshot`; report headers show the snapshot source and indicator cutoff.
+
+### Risk Model
+
+StockSight separates anomaly strength from risk severity. An A-share limit-up move is treated as a strong anomaly/watch signal by default, not an automatic danger signal; it only escalates to danger when confirmed by extreme volume ratio, high turnover, limit-down pressure, bearish divergence, or other weakening evidence. Risk scores are technical references only and are not investment advice.
 
 ## Public API
 
@@ -407,6 +419,8 @@ Stable interfaces:
 ## Configuration
 
 News is optional. Without an API key, StockSight-Skill skips the news section and still renders the core market and risk report.
+
+When enabled, context is split into "Company Announcements & Hard Information" and "Market News & Sentiment". The current implementation keeps dependencies light: Tavily / SerpAPI provide search results, while StockSight controls A-share query templates, category labels, dedupe, and source ranking.
 
 Use `config.example.json` as the shape for `.sightconfig.json`:
 

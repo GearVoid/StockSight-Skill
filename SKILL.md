@@ -23,7 +23,7 @@ If dependency installation is unavailable, still use this skill for report forma
 2. Run `normalize_quote_data(stocks)` before detection.
 3. Run `detect(stocks)` or `detect_anomalies(stocks)` to produce `RiskSignal` entries.
 4. For detailed single-stock A-share or US reports, compute MACD/RSI/BOLL/KDJ with `analyze_technical_indicators(history)` and set `ReportData.technical`. A-share history should try EastMoney first, then the Sina/Tencent fallback history provider when bars are missing or insufficient.
-5. Optionally search news only when an API key is configured. If news lookup fails or returns no results, skip the news section and continue.
+5. Optionally search company context only when an API key is configured. For A-shares, use the built-in hard-information query plan first: announcements, filings, earnings previews, risk notices, major events, and shareholder changes. Rank exchange/CnInfo/Eastmoney/company sources ahead of generic market news. If lookup fails or returns no results, skip the section and continue.
 6. Create `ReportData` with title, summary, stocks, signals, data source, timestamp, optional `news`, and optional `technical`.
 7. Render Markdown with `render_standard_report(data)` for multi-stock reports, or `render_detailed_report(data)` for single-stock deep dives.
 8. Render browser-ready HTML with `render_html_report(data, mode="standard"|"detailed")` when the user wants a polished report page.
@@ -72,10 +72,13 @@ News providers are optional. Supported API key sources:
 - Use `render_html_report` for a full browser-ready page with built-in CSS charts; do not hand-write one-off HTML reports as the core output path.
 - Put a data source line at the end of every report.
 - Do not block the core report on missing news API keys, news provider failures, or empty news results.
+- Treat announcement/filing items as context, not as deterministic trading signals unless the detector or technical analysis also supports the conclusion.
 - Use `—` for unavailable market metrics such as Hong Kong or US volume ratio.
 - In detailed reports, include the generated final judgment and data credibility sections; do not invent a separate conclusion outside the rendered report.
 - Keep the generated report context visible near the top: quote timestamp, historical indicator cutoff date, and whether the output was rendered from a snapshot.
+- Include the data-source chain when available: live quote provider, historical provider, fallback status, and historical bar count.
 - Show data-quality notes when a metric is unavailable or clearly outside normal bounds.
+- Treat A-share limit-up moves as strong anomalies by default, not automatic danger signals; only escalate upward moves to danger when volume/turnover or technical evidence confirms overheating.
 - Treat MACD/RSI/BOLL/KDJ as technical references. Bearish technical signals may raise risk, but bullish signals do not lower existing risk.
 - Include a brief investment-risk disclaimer when giving target or stop-loss style reference values.
 

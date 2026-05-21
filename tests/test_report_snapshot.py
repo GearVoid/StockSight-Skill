@@ -28,7 +28,10 @@ def sample_technical():
 
 class ReportSnapshotTests(unittest.TestCase):
     def test_snapshot_roundtrip_preserves_report_payload(self):
-        data = sample_report(technical=sample_technical())
+        data = sample_report(
+            technical=sample_technical(),
+            source_notes=["实时行情：unit", "历史行情：unit-history（80条）"],
+        )
 
         with tempfile.TemporaryDirectory() as tmp:
             snapshot = Path(tmp) / "sample.json"
@@ -50,6 +53,7 @@ class ReportSnapshotTests(unittest.TestCase):
         self.assertIsNotNone(restored.technical)
         self.assertEqual(restored.technical.rsi.latest, 72.5)
         self.assertEqual(restored.technical.signals[0].indicator, "RSI")
+        self.assertEqual(restored.source_notes, data.source_notes)
         self.assertEqual(restored.snapshot_source, str(snapshot))
         self.assertEqual(meta["mode"], "detailed")
         self.assertEqual(meta["provider"], "unit")
@@ -93,11 +97,13 @@ class ReportSnapshotTests(unittest.TestCase):
             report._save_snapshot(snapshot, sample_report(), mode="detailed", provider="unit", failed=[], quality_notes=[])
             payload = json.loads(snapshot.read_text(encoding="utf-8"))
             payload["report"].pop("technical", None)
+            payload["report"].pop("source_notes", None)
             snapshot.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
 
             restored, _ = report._load_snapshot(snapshot)
 
         self.assertIsNone(restored.technical)
+        self.assertEqual(restored.source_notes, [])
 
 
 if __name__ == "__main__":

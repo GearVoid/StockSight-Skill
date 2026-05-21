@@ -2,11 +2,12 @@
 """Small HTML rendering utilities for StockSight reports."""
 
 from html import escape
+from dataclasses import dataclass
 from typing import Dict, List, Sequence, Tuple
 
 from core import ReportData, RiskSignal, StockData
 
-VERSION = "2.0"
+VERSION = "0.3.0"
 
 LEVEL_COLORS = {
     1: "#d79b2b",
@@ -119,23 +120,51 @@ def _level_pie_gradient(counts: Dict[int, int]) -> str:
 # 风险得分计算
 # =============================================================================
 
+@dataclass(frozen=True)
+class DualRiskScore:
+    """Separate unusual-move strength from downside/event risk."""
+
+    anomaly_score: int
+    risk_score: int
+    anomaly_label: str
+    risk_label: str
+    risk_range: str
+    risk_color: str
+
+
+def calculate_dual_risk_score(signals: Sequence[RiskSignal]) -> DualRiskScore:
+    anomaly = _calculate_anomaly_score(signals)
+    risk = _calculate_directional_risk_score(signals)
+    risk_label, risk_color, risk_range = _get_risk_status(risk)
+    return DualRiskScore(
+        anomaly_score=anomaly,
+        risk_score=risk,
+        anomaly_label=_get_anomaly_status(anomaly),
+        risk_label=risk_label,
+        risk_range=risk_range,
+        risk_color=risk_color,
+    )
+
+
 def _calculate_risk_score(signals: Sequence[RiskSignal]) -> int:
+    """Backward-compatible risk score used by older tests/imports."""
+    return calculate_dual_risk_score(signals).risk_score
+
+
+def _calculate_anomaly_score(signals: Sequence[RiskSignal]) -> int:
     if not signals:
         return 12
 
     score = 15
-    has_market_signal = False
     technical_only = True
     grouped: Dict[str, List[RiskSignal]] = {}
     for signal in signals:
         grouped.setdefault(signal.risk_type, []).append(signal)
         if not _is_technical_signal(signal.risk_type):
             technical_only = False
-        if _is_market_signal(signal.risk_type):
-            has_market_signal = True
 
     for risk_type, items in grouped.items():
-        weight = _signal_weight(risk_type)
+        weight = _anomaly_weight(risk_type)
         levels = sorted((max(0, min(item.level, 3)) for item in items), reverse=True)
         if not levels:
             continue
@@ -145,13 +174,54 @@ def _calculate_risk_score(signals: Sequence[RiskSignal]) -> int:
 
     if len(grouped) >= 3:
         score += min((len(grouped) - 2) * 3, 6)
-    if has_market_signal and any(signal.level >= 3 for signal in signals):
+
+    if technical_only:
+        cap = 72
+    else:
+        cap = 98
+    return max(12, min(int(round(score)), cap))
+
+
+def _calculate_directional_risk_score(signals: Sequence[RiskSignal]) -> int:
+    if not signals:
+        return 12
+
+    score = 14
+    grouped: Dict[str, List[RiskSignal]] = {}
+    technical_only = True
+    has_downside_or_event = False
+    has_market_danger = False
+
+    for signal in signals:
+        grouped.setdefault(signal.risk_type, []).append(signal)
+        if not _is_technical_signal(signal.risk_type):
+            technical_only = False
+        if _is_downside_or_event_signal(signal):
+            has_downside_or_event = True
+        if _is_market_signal(signal.risk_type) and signal.level >= 3:
+            has_market_danger = True
+
+    for risk_type, items in grouped.items():
+        levels = sorted((max(0, min(item.level, 3)) for item in items), reverse=True)
+        if not levels:
+            continue
+        weight = _risk_weight(risk_type, items)
+        score += weight * levels[0]
+        for level in levels[1:]:
+            score += weight * level * 0.18
+
+    if len(grouped) >= 3:
+        score += min((len(grouped) - 2) * 2, 5)
+    if has_downside_or_event:
+        score += 6
+    if has_market_danger and has_downside_or_event:
         score += 5
 
-    has_danger_signal = any(signal.level >= 3 for signal in signals)
     if technical_only:
         cap = 60
-    elif not has_danger_signal:
+    elif not has_downside_or_event:
+        cap = 68
+    elif not any(signal.level >= 3 for signal in signals):
         cap = 74
     else:
         cap = 98
@@ -167,7 +237,7 @@ def _is_market_signal(risk_type: str) -> bool:
     return any(keyword in risk_type for keyword in keywords)
 
 
-def _signal_weight(risk_type: str) -> int:
+def _anomaly_weight(risk_type: str) -> int:
     if "价格" in risk_type or "涨跌" in risk_type:
         return 18
     if "量比" in risk_type or "换手" in risk_type:
@@ -183,6 +253,68 @@ def _signal_weight(risk_type: str) -> int:
     if "RSI" in risk_type:
         return 8
     return 9
+
+
+def _risk_weight(risk_type: str, signals: Sequence[RiskSignal]) -> int:
+    if _is_bullish_price_move(signals) and ("收益" in risk_type or "涨跌" in risk_type or "价格" in risk_type):
+        return 9
+    if "风险提示" in risk_type or "退市" in risk_type or "监管" in risk_type:
+        return 20
+    if "价格" in risk_type or "涨跌" in risk_type or "收益" in risk_type:
+        return 15
+    if "换手" in risk_type:
+        return 13
+    if "量比" in risk_type:
+        return 11
+    if "MACD" in risk_type or "BOLL" in risk_type:
+        return 10
+    if "KDJ" in risk_type:
+        return 8
+    if "RSI" in risk_type:
+        return 7
+    return 8
+
+
+def _is_bullish_price_move(signals: Sequence[RiskSignal]) -> bool:
+    text = " ".join(
+        f"{signal.risk_type} {signal.description} {signal.deviation_value}"
+        for signal in signals
+    )
+    if any(keyword in text for keyword in ("下跌", "跌停", "跑输", "回落", "走弱")):
+        return False
+    return any(keyword in text for keyword in ("上涨", "涨停", "跑赢", "涨幅"))
+
+
+def _is_downside_or_event_signal(signal: RiskSignal) -> bool:
+    text = f"{signal.risk_type} {signal.description}"
+    downside_keywords = (
+        "下跌",
+        "跌停",
+        "跑输",
+        "走弱",
+        "回撤",
+        "顶背离",
+        "死叉",
+        "风险提示",
+        "退市",
+        "监管",
+        "处罚",
+        "预亏",
+        "减持",
+    )
+    return any(keyword in text for keyword in downside_keywords)
+
+
+def _get_anomaly_status(score: int) -> str:
+    if score < 25:
+        return "平稳"
+    if score < 45:
+        return "轻度异动"
+    if score < 65:
+        return "明显异动"
+    if score < 80:
+        return "强异动"
+    return "极强异动"
 
 
 def _get_risk_status(score: int) -> Tuple[str, str, str]:

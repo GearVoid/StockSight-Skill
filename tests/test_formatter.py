@@ -1,14 +1,14 @@
 ﻿# -*- coding: utf-8 -*-
 import unittest
 
-from core import BOLLResult, KDJResult, MACDResult, RSIResult, RiskSignal, TechnicalAnalysis, TechnicalSignal
+from core import BOLLResult, KDJResult, MACDResult, NewsItem, RSIResult, RiskSignal, TechnicalAnalysis, TechnicalSignal
 from formatter import (
     render_detailed_report,
     render_html_report,
     render_standard_report,
     validate_report,
 )
-from formatter.html_utils import _calculate_risk_score
+from formatter.html_utils import _calculate_risk_score, calculate_dual_risk_score
 
 from tests.fixtures import sample_report
 
@@ -26,7 +26,7 @@ class FormatterTests(unittest.TestCase):
         self.assertIn("行情时间", report)
 
     def test_detailed_report_validates(self):
-        data = sample_report()
+        data = sample_report(source_notes=["实时行情：unit", "历史行情：unit-history（80条）"])
         report = render_detailed_report(data)
         result = validate_report(report, data)
 
@@ -36,6 +36,8 @@ class FormatterTests(unittest.TestCase):
         self.assertIn("最终判断", report)
         self.assertIn("数据可信度", report)
         self.assertIn("报告口径", report)
+        self.assertIn("数据来源链", report)
+        self.assertIn("历史行情：unit-history", report)
         self.assertIn("使用 Snapshot", report)
 
     def test_html_report_contains_split_sections(self):
@@ -49,7 +51,37 @@ class FormatterTests(unittest.TestCase):
         self.assertIn("数据可信度", html)
         self.assertIn("行情时间", html)
         self.assertIn("Snapshot", html)
-        self.assertIn("StockSight v2.0", html)
+        self.assertIn("StockSight v0.3.0", html)
+        self.assertIn("异动强度", html)
+        self.assertIn("下行风险", html)
+        self.assertIn("异动强度拆解", html)
+        self.assertIn("价格波动", html)
+
+    def test_news_context_splits_hard_info_and_market_news(self):
+        data = sample_report(news=[
+            NewsItem(
+                title="Sample 年度报告公告",
+                source="东方财富公告",
+                url="https://data.eastmoney.com/notices/detail/600001/a.html",
+                published_at="2026-05-18",
+                snippet="[财报] 年度报告摘要",
+            ),
+            NewsItem(
+                title="Sample 股价异动",
+                source="财经媒体",
+                url="https://example.com/news",
+                published_at="2026-05-18",
+                snippet="[新闻] 市场关注度升温",
+            ),
+        ])
+
+        markdown = render_detailed_report(data)
+        html = render_html_report(data)
+
+        self.assertIn("公司公告与硬信息", markdown)
+        self.assertIn("市场资讯与舆情", markdown)
+        self.assertIn("公司公告与硬信息", html)
+        self.assertIn("市场资讯与舆情", html)
 
     def test_html_report_without_signals_does_not_create_fake_pie(self):
         html = render_html_report(sample_report(signal=None, news=[]))
@@ -103,6 +135,7 @@ class FormatterTests(unittest.TestCase):
         html = render_html_report(data)
 
         self.assertIn("技术指标辅助", markdown)
+        self.assertIn("异动强度拆解", markdown)
         self.assertIn("RSI14", markdown)
         self.assertIn("BOLL20", markdown)
         self.assertIn("KDJ9", markdown)
@@ -132,7 +165,7 @@ class FormatterTests(unittest.TestCase):
     def test_market_risks_can_score_higher_than_technical_only(self):
         technical = [RiskSignal("AAPL", "RSI技术信号", 2, 72.1, "", "RSI overbought")]
         market = [
-            RiskSignal("TEST", "价格异动", 3, 9.8, "%", "price limit"),
+            RiskSignal("TEST", "价格异动", 3, 9.8, "%", "跌停 price limit"),
             RiskSignal("TEST", "量比偏离", 3, 4.5, "x", "volume spike"),
             RiskSignal("TEST", "换手率异常", 2, 18.0, "%", "turnover spike"),
         ]
@@ -149,6 +182,27 @@ class FormatterTests(unittest.TestCase):
         ]
 
         self.assertLess(_calculate_risk_score(signals), 75)
+
+    def test_limit_up_anomaly_can_be_high_while_downside_risk_is_capped(self):
+        signals = [
+            RiskSignal("TEST", "超额收益异动", 2, 10.0, "%", "涨幅绝对值10.0%，上涨方向按强异动观察"),
+            RiskSignal("TEST", "量比偏离", 2, 2.4, "x", "量比放大但未到极端"),
+        ]
+
+        dual = calculate_dual_risk_score(signals)
+
+        self.assertGreaterEqual(dual.anomaly_score, 60)
+        self.assertLess(dual.risk_score, 70)
+
+    def test_limit_down_keeps_higher_downside_risk(self):
+        signals = [
+            RiskSignal("TEST", "超额收益异动", 3, 10.0, "%", "跌停，下跌风险扩大"),
+            RiskSignal("TEST", "量比偏离", 3, 4.1, "x", "放量下跌"),
+        ]
+
+        dual = calculate_dual_risk_score(signals)
+
+        self.assertGreaterEqual(dual.risk_score, 75)
 
 
 if __name__ == "__main__":

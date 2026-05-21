@@ -187,6 +187,64 @@ def _style() -> str:
       font-size: 12px;
       font-style: normal;
     }
+    .anomaly-breakdown-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+    }
+    .anomaly-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #ffffff;
+    }
+    .anomaly-card-head,
+    .anomaly-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .anomaly-card-head span {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .anomaly-card-head strong {
+      font-size: 24px;
+      color: var(--ink);
+    }
+    .anomaly-bar {
+      height: 8px;
+      border-radius: 999px;
+      background: #edf1f7;
+      overflow: hidden;
+      margin: 10px 0 8px;
+    }
+    .anomaly-bar i {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: #2563eb;
+    }
+    .anomaly-card.low .anomaly-bar i { background: #94a3b8; }
+    .anomaly-card.medium .anomaly-bar i { background: #d79b2b; }
+    .anomaly-card.high .anomaly-bar i { background: #d36b23; }
+    .anomaly-meta b {
+      color: var(--ink);
+      font-size: 13px;
+    }
+    .anomaly-meta em {
+      color: var(--muted);
+      font-size: 12px;
+      font-style: normal;
+    }
+    .anomaly-card p {
+      margin: 9px 0 0;
+      color: #475569;
+      font-size: 12px;
+      line-height: 1.55;
+    }
     .risk-explain-list {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

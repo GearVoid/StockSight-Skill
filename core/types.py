@@ -284,3 +284,6 @@ class ReportData:
 
     snapshot_source: str = ""
     """快照来源路径；为空表示本次报告不是从 snapshot 回放。"""
+
+    source_notes: List[str] = field(default_factory=list)
+    """数据来源链说明，如实时行情源、历史行情源和 fallback 状态。"""

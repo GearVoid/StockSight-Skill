@@ -12,3 +12,4 @@ env/
 *.log
 reports/
 outputs/
+snapshots/

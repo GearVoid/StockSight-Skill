@@ -1,5 +1,29 @@
 ﻿# Changelog
 
+## v0.3.0 - 2026-05-21
+
+Source-chain reproducibility and risk-model clarity release. Reports now separate unusual-move strength from downside risk and can prioritize A-share announcements, filings, and other hard information ahead of generic news.
+
+### Added
+- **Data source chain** in report context: live quote source, historical K-line source, fallback status, historical bar count, technical cutoff date, and snapshot state.
+- **Hard-information-first news aggregation**: A-share query templates for announcements, filings, earnings previews, risk notices, major events, and shareholder changes.
+- **Source/category labeling for context items**: exchange, CnInfo, Eastmoney announcement, company site, investor relations, financial media, and generic search results are ranked and labeled.
+- **Company information sections** in Markdown and HTML reports, split into "公司公告与硬信息" and "市场资讯与舆情".
+- **Dual risk scoring**: `anomaly_score` explains how unusual the move is, while `risk_score` estimates downside/event risk.
+- **Anomaly strength breakdown** in Markdown and HTML: price movement, trading activity, turnover, technical confluence, and event-driven contribution.
+- **Snapshot source notes** via `ReportData.source_notes`, preserved by `--save-snapshot` and `--from-snapshot`.
+
+### Changed
+- HTML risk gauge now centers on downside risk and explains anomaly strength separately.
+- Header metrics now show both "异动强度" and "下行风险".
+- A-share limit-up and strong upward moves remain high anomaly events but no longer automatically imply high downside risk.
+- Optional news is now treated as company context; missing API keys still skip the section without blocking core reports.
+- HTML footer version now follows the project release version.
+
+### Fixed
+- Snapshot replay remains compatible with older snapshots that do not contain source-chain notes.
+- Local `snapshots/` are ignored to keep generated replay artifacts out of commits.
+
 ## v0.2.0 - 2026-05-20
 
 Technical indicator convergence release. MACD/RSI now produce trend summaries and divergence detection.
