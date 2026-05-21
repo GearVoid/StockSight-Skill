@@ -32,6 +32,43 @@ class QualityAndDetectorTests(unittest.TestCase):
             [signal for signal in signals if "turnover" in signal.risk_type.lower()]
         )
 
+    def test_positive_limit_move_without_overheated_flow_is_warning(self):
+        stock = sample_stock(
+            change_percent=10.0,
+            volume_ratio=1.4,
+            turnover_rate=1.4,
+        )
+
+        signals = detect_anomalies([stock])
+        price_signal = next(sig for sig in signals if sig.risk_type == "超额收益异动")
+
+        self.assertEqual(price_signal.level, 2)
+        self.assertIn("强异动观察", price_signal.description)
+
+    def test_positive_limit_move_with_overheated_flow_stays_danger(self):
+        stock = sample_stock(
+            change_percent=10.0,
+            volume_ratio=3.2,
+            turnover_rate=1.4,
+        )
+
+        signals = detect_anomalies([stock])
+        price_signal = next(sig for sig in signals if sig.risk_type == "超额收益异动")
+
+        self.assertEqual(price_signal.level, 3)
+        self.assertIn("同步过热", price_signal.description)
+
+    def test_negative_limit_move_stays_danger(self):
+        stock = sample_stock(
+            change_percent=-10.0,
+            volume_ratio=1.0,
+            turnover_rate=1.0,
+        )
+
+        signals = detect_anomalies([stock])
+        price_signal = next(sig for sig in signals if sig.risk_type == "超额收益异动")
+
+        self.assertEqual(price_signal.level, 3)
 
 
 
@@ -53,4 +90,3 @@ class QualityAndDetectorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -134,7 +134,7 @@ python scripts/render_examples.py
 1. 获取行情：`TencentDataSource`、`YahooFinanceDataSource`、`SinaDataSource` 或 `EastMoneyDataSource`。
 2. 清洗行情：`normalize_quote_data(stocks)`。
 3. 检测异动：`detect(stocks)` 或 `detect_anomalies(stocks)`。
-4. 详细单股报告可计算技术指标：A 股用 EastMoney 历史 K 线，美股用 Yahoo history，输出 MACD / RSI / BOLL / KDJ。
+4. 详细单股报告可计算技术指标：A 股优先用 EastMoney 历史 K 线，并自动回退到 Sina/Tencent K 线；美股用 Yahoo history，输出 MACD / RSI / BOLL / KDJ。
 5. 可选资讯：`search_configured_news(stocks)`。
 6. 渲染报告：Markdown 用 `render_standard_report` / `render_detailed_report`，HTML 用 `render_html_report`；详细报告会自动生成最终判断和数据可信度说明。
 7. 校验输出：Markdown 用 `validate_report(report_text, data)`。
@@ -373,7 +373,7 @@ If you need PDF, generate HTML first and export it from your own browser or syst
 1. Fetch quotes with `TencentDataSource`, `YahooFinanceDataSource`, `SinaDataSource`, or `EastMoneyDataSource`.
 2. Normalize quotes with `normalize_quote_data(stocks)`.
 3. Detect anomalies with `detect(stocks)` or `detect_anomalies(stocks)`.
-4. For detailed single-stock A-share or US reports, compute MACD / RSI / BOLL / KDJ from provider history.
+4. For detailed single-stock A-share or US reports, compute MACD / RSI / BOLL / KDJ from provider history. A-share history uses EastMoney first, then Sina/Tencent fallback K-lines.
 5. Optionally fetch news with `search_configured_news(stocks)`.
 6. Render Markdown or HTML; detailed reports automatically include a final judgment and data credibility summary.
 7. Validate Markdown with `validate_report(report_text, data)`.

@@ -153,7 +153,7 @@ Operation suggestions, target prices, and stop-loss values are technical referen
 
 - Detailed single-stock HTML reports may include a static MACD SVG chart plus RSI/BOLL/KDJ range panels.
 - Detailed Markdown reports may include a compact "技术指标辅助" table.
-- MACD/RSI/BOLL/KDJ are computed only when A-share or US historical bars are available.
+- MACD/RSI/BOLL/KDJ are computed only when A-share or US historical bars are available. A-share history should use EastMoney first and may fall back to Sina/Tencent daily K-lines.
 - BOLL highlights upper/lower band pressure; KDJ highlights short-term overbought/oversold and cross signals.
 - Bearish technical signals may be converted into `RiskSignal` entries for risk distribution and signal composition.
 - Bullish technical signals are displayed as auxiliary context and must not reduce existing risk scores.

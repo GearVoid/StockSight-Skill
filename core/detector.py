@@ -167,6 +167,33 @@ def _level_from_threshold(
     return 0
 
 
+def _has_upside_risk_confirmation(stock: StockData, thresholds: DetectorThresholds) -> bool:
+    """Return whether a large upward move has extra overheating evidence.
+
+    A positive limit-up move is a strong event, but not automatically a level-3
+    risk. Upgrade it only when quote-side evidence also shows overheated volume
+    or turnover. Falling limit moves keep their higher risk by direction.
+    """
+    if stock.volume_ratio >= thresholds.volume_ratio_danger:
+        return True
+    if 0 < stock.turnover_rate >= thresholds.turnover_rate_pct_warn:
+        return True
+    return False
+
+
+def _calibrate_price_move_level(
+    stock: StockData,
+    level: int,
+    thresholds: DetectorThresholds,
+) -> Tuple[int, str]:
+    """Calibrate absolute/relative price move level by direction and context."""
+    if level < 3 or stock.change_percent <= 0:
+        return level, ""
+    if _has_upside_risk_confirmation(stock, thresholds):
+        return level, "，且量能或换手同步过热"
+    return 2, "，上涨方向未见量比/换手同步过热，按强异动观察"
+
+
 # =============================================================================
 # 各维度检测函数（内部）
 # =============================================================================
@@ -299,6 +326,8 @@ def _detect_excess_return(
             f"同批均值{group_mean_change:+.1f}%，"
             f"{direction}{diff:.1f}个百分点"
         )
+        level, note = _calibrate_price_move_level(stock, level, thresholds)
+        description += note
     else:
         # 单只回退：绝对值判定
         abs_change = abs(change)
@@ -311,6 +340,8 @@ def _detect_excess_return(
         deviation_unit = "%"
         deviation_val = abs_change
         description = f"涨跌幅绝对值{abs_change:.1f}%"
+        level, note = _calibrate_price_move_level(stock, level, thresholds)
+        description += note
 
     if level == 0:
         return None

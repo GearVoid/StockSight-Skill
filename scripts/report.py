@@ -42,6 +42,7 @@ from formatter import (  # noqa: E402
 )
 from news import search_configured_news  # noqa: E402
 from providers import (  # noqa: E402
+    AShareHistoryDataSource,
     EastMoneyDataSource,
     SinaDataSource,
     TencentDataSource,
@@ -51,6 +52,7 @@ from providers import (  # noqa: E402
 logger = logging.getLogger(__name__)
 
 SNAPSHOT_SCHEMA_VERSION = 1
+MIN_TECHNICAL_HISTORY_BARS = 35
 T = TypeVar("T")
 
 
@@ -348,9 +350,20 @@ def _load_snapshot(path: Path) -> Tuple[ReportData, Dict[str, Any]]:
     return data, meta
 
 
+def _has_enough_history(history) -> bool:
+    return bool(history and len(history.bars) >= MIN_TECHNICAL_HISTORY_BARS)
+
+
 def _fetch_history_for_technical(stock: StockData):
     if stock.market in ("sh", "sz"):
-        return EastMoneyDataSource().fetch_history(stock.code, days=80)
+        last_history = None
+        for source in (EastMoneyDataSource(), AShareHistoryDataSource()):
+            history = source.fetch_history(stock.code, days=80)
+            if _has_enough_history(history):
+                return history
+            if history and history.bars:
+                last_history = history
+        return last_history
     if stock.market == "us":
         return YahooFinanceDataSource().fetch_history(stock.code, days=80)
     return None

@@ -148,7 +148,13 @@ def _calculate_risk_score(signals: Sequence[RiskSignal]) -> int:
     if has_market_signal and any(signal.level >= 3 for signal in signals):
         score += 5
 
-    cap = 60 if technical_only else 98
+    has_danger_signal = any(signal.level >= 3 for signal in signals)
+    if technical_only:
+        cap = 60
+    elif not has_danger_signal:
+        cap = 74
+    else:
+        cap = 98
     return max(12, min(int(round(score)), cap))
 
 
