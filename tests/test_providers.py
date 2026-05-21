@@ -257,6 +257,7 @@ class SinaParserTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 from providers.eastmoney import EastMoneyDataSource
+from providers.ashare_history import AShareHistoryDataSource, _market_symbol
 from core.market import to_eastmoney_secid
 
 
@@ -369,6 +370,90 @@ class EastMoneyParserTests(unittest.TestCase):
         self.assertEqual(len(history.bars), 2)
         self.assertEqual(history.bars[0].date, "2026-01-01")
         self.assertAlmostEqual(history.bars[-1].close, 10.80)
+
+
+# ---------------------------------------------------------------------------
+# A-share fallback history provider tests
+# ---------------------------------------------------------------------------
+
+SINA_HISTORY_ROWS = [
+    {"day": "2026-01-01", "open": "10.00", "high": "10.80", "low": "9.90", "close": "10.50", "volume": "1000"},
+    {"day": "2026-01-02", "open": "10.50", "high": "11.00", "low": "10.40", "close": "10.80", "volume": "1200"},
+]
+
+TENCENT_HISTORY_PAYLOAD = {
+    "data": {
+        "sz002346": {
+            "qfqday": [
+                ["2026-01-01", "10.00", "10.50", "10.80", "9.90", "1000"],
+                ["2026-01-02", "10.50", "10.80", "11.00", "10.40", "1200"],
+            ]
+        }
+    }
+}
+
+
+class AShareHistoryDataSourceTests(unittest.TestCase):
+    def test_market_symbol_derives_exchange_prefix(self):
+        self.assertEqual(_market_symbol("600570"), "sh600570")
+        self.assertEqual(_market_symbol("002346"), "sz002346")
+        self.assertEqual(_market_symbol("sz002346"), "sz002346")
+        self.assertIsNone(_market_symbol("AAPL"))
+
+    def test_fetch_history_parses_sina_rows(self):
+        class FakeSession:
+            def get(self, url, params, headers, timeout):
+                class FakeResp:
+                    @staticmethod
+                    def json():
+                        return SINA_HISTORY_ROWS
+                return FakeResp()
+
+        ds = AShareHistoryDataSource()
+        ds._session = FakeSession()
+
+        history = ds.fetch_history("600570", days=2)
+
+        self.assertEqual(history.code, "600570")
+        self.assertEqual(len(history.bars), 2)
+        self.assertEqual(history.bars[0].date, "2026-01-01")
+        self.assertAlmostEqual(history.bars[-1].close, 10.80)
+
+    def test_fetch_history_falls_back_to_tencent_rows(self):
+        class FakeSession:
+            def __init__(self):
+                self.calls = 0
+
+            def get(self, url, params, headers, timeout):
+                self.calls += 1
+
+                class FakeResp:
+                    def __init__(self, payload):
+                        self._payload = payload
+
+                    def json(self):
+                        return self._payload
+
+                if self.calls == 1:
+                    return FakeResp([])
+                return FakeResp(TENCENT_HISTORY_PAYLOAD)
+
+        ds = AShareHistoryDataSource()
+        ds._session = FakeSession()
+
+        history = ds.fetch_history("002346", days=2)
+
+        self.assertEqual(history.code, "002346")
+        self.assertEqual(len(history.bars), 2)
+        self.assertEqual(history.bars[0].date, "2026-01-01")
+        self.assertAlmostEqual(history.bars[-1].high, 11.00)
+
+    def test_fetch_history_returns_empty_for_invalid_code(self):
+        ds = AShareHistoryDataSource()
+        history = ds.fetch_history("AAPL", days=2)
+
+        self.assertEqual(history.code, "AAPL")
+        self.assertEqual(history.bars, [])
 
 
 if __name__ == "__main__":

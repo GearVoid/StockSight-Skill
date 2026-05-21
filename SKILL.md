@@ -22,7 +22,7 @@ If dependency installation is unavailable, still use this skill for report forma
 1. Build one or more `StockData` records from provider data.
 2. Run `normalize_quote_data(stocks)` before detection.
 3. Run `detect(stocks)` or `detect_anomalies(stocks)` to produce `RiskSignal` entries.
-4. For detailed single-stock A-share or US reports, compute MACD/RSI/BOLL/KDJ with `analyze_technical_indicators(history)` and set `ReportData.technical`.
+4. For detailed single-stock A-share or US reports, compute MACD/RSI/BOLL/KDJ with `analyze_technical_indicators(history)` and set `ReportData.technical`. A-share history should try EastMoney first, then the Sina/Tencent fallback history provider when bars are missing or insufficient.
 5. Optionally search news only when an API key is configured. If news lookup fails or returns no results, skip the news section and continue.
 6. Create `ReportData` with title, summary, stocks, signals, data source, timestamp, optional `news`, and optional `technical`.
 7. Render Markdown with `render_standard_report(data)` for multi-stock reports, or `render_detailed_report(data)` for single-stock deep dives.
@@ -52,6 +52,7 @@ If the user needs PDF, generate HTML first and let the user export it from their
 - Use `YahooFinanceDataSource` for US tickers when no paid market-data key is available.
 - Use `SinaDataSource` as a fallback quote provider when Yahoo or Tencent cannot return data.
 - Use `EastMoneyDataSource` for A-share quotes and optional sector benchmark support.
+- Use `AShareHistoryDataSource` only as an A-share historical K-line fallback for technical indicators.
 - Prefer `DataSourceFactory` or `scripts/report.py --provider auto` when chaining providers.
 
 ## Configuration

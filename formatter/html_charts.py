@@ -184,17 +184,22 @@ def _final_judgment_html(stock: StockData, signals: Sequence[RiskSignal], techni
     if not main_risk and risk_types:
         main_risk = "、".join(risk_types)
 
-    # Build trend indicators line
+    # Build trend indicators line. Keep this area concise, but never hard-cut
+    # indicator text because half tokens like "D" or "M" look like data loss.
     trend_items = []
     if technical and getattr(technical, "trend", None):
         t = technical.trend
         if t.macd_alignment:
-            trend_items.append(f"MACD {t.macd_alignment_desc[:20]}")
+            trend_items.append(f"MACD {t.macd_alignment_desc}")
         if t.rsi_trend:
-            trend_items.append(t.rsi_trend_desc[:25])
+            trend_items.append(t.rsi_trend_desc)
         if t.divergence:
             icon = "⚠" if t.divergence == "bearish" else "✦"
-            trend_items.append(f"{icon} {t.divergence_desc[:30]}")
+            label = "顶背离" if t.divergence == "bearish" else "底背离"
+            if "MACD DIF" in t.divergence_desc:
+                trend_items.append(f"{icon} {label}：MACD DIF 未同步确认")
+            else:
+                trend_items.append(f"{icon} {label}")
     trend_line = " · ".join(trend_items) if trend_items else ""
 
     return (

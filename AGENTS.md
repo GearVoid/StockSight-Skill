@@ -4,7 +4,7 @@ This guide is for agents such as Hermes, Cursor, Codex, Copilot, and other autom
 
 ## What StockSight Does
 
-StockSight fetches quotes, cleans suspicious fields, detects unusual volume, turnover, return, MACD, and RSI signals, then renders polished Markdown or self-contained HTML reports.
+StockSight fetches quotes, cleans suspicious fields, detects unusual volume, turnover, return, MACD, RSI, BOLL, and KDJ signals, then renders polished Markdown or self-contained HTML reports.
 
 ## Quick Invocation
 
@@ -31,6 +31,8 @@ Provider selection:
 | Auto | Chains providers | `--provider auto` |
 
 If a provider call fails, `--provider auto` tries the next available provider.
+
+For detailed A-share reports, technical history uses EastMoney first and then falls back to public Sina/Tencent daily K-lines when EastMoney does not return enough bars.
 
 ## Snapshot Workflow
 
@@ -100,18 +102,18 @@ result = validate_report(markdown, data)
 
 Standard reports cover market pulse, risk visualization, stock table, risk warnings, operation suggestions, optional news, and data source.
 
-Detailed reports cover report context, final judgment, core dashboard, risk visualization, data credibility, price overview, volume/price metrics, MACD/RSI trend summary, anomaly analysis, risk warnings, operation suggestions, optional news, and data source.
+Detailed reports cover report context, final judgment, core dashboard, risk visualization, data credibility, price overview, volume/price metrics, MACD/RSI/BOLL/KDJ trend summary, anomaly analysis, risk warnings, operation suggestions, optional news, and data source.
 
 ## Key Files
 
 | File | Purpose |
 |:---|:---|
 | `scripts/report.py` | One-command report CLI |
-| `core/analysis.py` | MACD, RSI, trend summary, divergence |
+| `core/analysis.py` | MACD, RSI, BOLL, KDJ, trend summary, divergence |
 | `core/detector.py` | Volume, turnover, return anomaly detection |
 | `formatter/detailed.py` | Markdown detailed renderer |
 | `formatter/html.py` | HTML report renderer |
-| `formatter/html_charts.py` | Gauge, radar, MACD/RSI, trend panels |
+| `formatter/html_charts.py` | Gauge, radar, MACD/RSI/BOLL/KDJ, trend panels |
 | `formatter/base.py` | Shared formatting, data credibility, final judgment |
 
 ## Error Handling

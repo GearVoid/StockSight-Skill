@@ -140,6 +140,16 @@ class FormatterTests(unittest.TestCase):
         self.assertGreater(_calculate_risk_score(market), _calculate_risk_score(technical))
         self.assertGreaterEqual(_calculate_risk_score(market), 80)
 
+    def test_market_warnings_without_danger_are_capped_below_high_risk(self):
+        signals = [
+            RiskSignal("TEST", "超额收益异动", 2, 10.0, "%", "limit up watch"),
+            RiskSignal("TEST", "RSI技术信号", 2, 73.0, "", "RSI overbought"),
+            RiskSignal("TEST", "KDJ技术信号", 2, 0.0, "", "KDJ death cross"),
+            RiskSignal("TEST", "BOLL技术信号", 1, 0.0, "", "near upper band"),
+        ]
+
+        self.assertLess(_calculate_risk_score(signals), 75)
+
 
 if __name__ == "__main__":
     unittest.main()
