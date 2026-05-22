@@ -62,9 +62,17 @@ pip install -r requirements.txt
 
 ```bash
 python scripts/report.py --from-snapshot examples/snapshot-sample.json --html --out reports/sample.html
+python scripts/screenshot_report.py reports/sample.html --out reports/sample-full.png
 ```
 
-如果成功生成 `reports/sample.html`，说明安装正常。无需网络，无需 API key。
+如果成功生成 `reports/sample.html` 和 `reports/sample-full.png`，说明报告渲染和长截图都可用。无需网络，无需 API key。
+
+### 推荐配置
+
+下载后建议先做两件事：
+
+1. **配置新闻搜索**：填好 `.sightconfig.json` 或环境变量，让 A 股报告能检索公告、财报、业绩预告、风险提示等硬信息。没有 key 也能生成核心报告，只是会跳过公司信息区。
+2. **优先分享长截图**：生成 HTML 后用 `scripts/screenshot_report.py` 导出长 PNG，比浏览器打印 PDF 更稳定，也更适合发给人看。
 
 ### 其它 Agent（Hermes / Cursor / 通用）
 
@@ -90,6 +98,7 @@ git clone https://github.com/GearVoid/StockSight-Skill.git
 
 ```bash
 python scripts/report.py 002346 --mode detailed --html --out reports/002346.html
+python scripts/screenshot_report.py reports/002346.html --out reports/002346-full.png
 ```
 
 生成美股报告：
@@ -144,6 +153,7 @@ python scripts/screenshot_report.py reports/002346.html --out docs/images/002346
 6. 渲染报告：Markdown 用 `render_standard_report` / `render_detailed_report`，HTML 用 `render_html_report`；详细报告会自动生成最终判断和数据可信度说明。
 7. 校验输出：Markdown 用 `validate_report(report_text, data)`。
 8. 追求一致性时：优先 `--save-snapshot`，后续一律 `--from-snapshot` 渲染；报告顶部会标明 snapshot 来源和指标截止日期。
+9. 需要分享给用户时：优先对 HTML 使用 `scripts/screenshot_report.py` 生成长截图；PDF 交给用户本机浏览器处理。
 
 ### 风险口径
 
@@ -177,6 +187,8 @@ from providers import TencentDataSource, YahooFinanceDataSource
 ## 配置
 
 资讯是可选能力。没有 API key 时，StockSight-Skill 会跳过资讯区块，但仍然生成核心行情和风险报告。
+
+强烈建议给 agent 配置 Tavily 或 SerpAPI。启用后，A 股报告不只是“行情 + 指标”，还会优先补公告、财报、业绩预告、风险提示等硬信息，报告判断会更像复盘而不是泛泛搜索。
 
 启用资讯后，报告会分成“公司公告与硬信息”和“市场资讯与舆情”。当前版本不引入重型公告 SDK，而是通过 Tavily / SerpAPI 执行更严格的 A 股 query 模板，并给结果打上公告、财报、业绩预告、风险提示等标签。交易所、巨潮资讯、东方财富公告、公司官网等来源会优先展示；普通新闻只作为兜底背景。
 
@@ -316,9 +328,17 @@ Then place the repository directory in Codex's skills directory (default ~/.code
 
 ```bash
 python scripts/report.py --from-snapshot examples/snapshot-sample.json --html --out reports/sample.html
+python scripts/screenshot_report.py reports/sample.html --out reports/sample-full.png
 ```
 
-If `reports/sample.html` is generated successfully, your installation is working. No network or API key required.
+If `reports/sample.html` and `reports/sample-full.png` are generated successfully, report rendering and long screenshots are both working. No network or API key required.
+
+### Recommended Setup
+
+After installation, agents should usually do two things:
+
+1. **Configure news search** with `.sightconfig.json` or environment variables so A-share reports can include announcements, filings, earnings previews, and risk notices. Without a key, StockSight still renders the core report and skips company context.
+2. **Prefer long screenshots for sharing**. Generate HTML first, then run `scripts/screenshot_report.py` to export a full-report PNG. This is more stable than built-in PDF export across different systems.
 
 ### Other Agents (Hermes / Cursor / General)
 
@@ -344,6 +364,7 @@ Generate an HTML report:
 
 ```bash
 python scripts/report.py 002346 --mode detailed --html --out reports/002346.html
+python scripts/screenshot_report.py reports/002346.html --out reports/002346-full.png
 ```
 
 Generate a US equity report:
@@ -431,6 +452,8 @@ Stable interfaces:
 ## Configuration
 
 News is optional. Without an API key, StockSight-Skill skips the news section and still renders the core market and risk report.
+
+Agents are encouraged to configure Tavily or SerpAPI after installation. With a key, A-share reports can prioritize announcements, filings, earnings previews, and risk notices before generic market news.
 
 When enabled, context is split into "Company Announcements & Hard Information" and "Market News & Sentiment". The current implementation keeps dependencies light: Tavily / SerpAPI provide search results, while StockSight controls A-share query templates, category labels, dedupe, and source ranking.
 

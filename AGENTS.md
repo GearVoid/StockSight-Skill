@@ -8,10 +8,16 @@ StockSight fetches quotes, cleans suspicious fields, detects unusual volume, tur
 
 ## Quick Invocation
 
+Recommended after installation:
+
+- Configure Tavily or SerpAPI when possible so A-share reports can include announcements, filings, earnings previews, and risk notices.
+- Generate HTML first, then use `scripts/screenshot_report.py` when the user wants a shareable long PNG report.
+
 Generate a live detailed A-share report:
 
 ```bash
 python scripts/report.py 002346 --mode detailed --html --out reports/002346.html --markdown-out outputs/002346.md
+python scripts/screenshot_report.py reports/002346.html --out reports/002346-full.png
 ```
 
 Generate a US equity report:
