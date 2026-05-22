@@ -64,6 +64,14 @@ Render fixed formatter comparison examples:
 python scripts/render_examples.py
 ```
 
+Capture a long PNG screenshot from a generated HTML report:
+
+```bash
+python scripts/screenshot_report.py reports/002346.html --out docs/images/002346-full.png
+```
+
+If Chrome / Edge is installed in a custom location, set `STOCKSIGHT_BROWSER` to the executable path.
+
 When rendering from `--from-snapshot`, do not fetch live quotes, re-run news search, re-detect signals, or recompute MACD/RSI/BOLL/KDJ. The snapshot is the source of truth.
 
 ## Python API
@@ -113,6 +121,7 @@ Risk model note: A-share limit-up moves are strong anomalies, not automatic dang
 | File | Purpose |
 |:---|:---|
 | `scripts/report.py` | One-command report CLI |
+| `scripts/screenshot_report.py` | Long PNG screenshot helper for HTML reports |
 | `core/analysis.py` | MACD, RSI, BOLL, KDJ, trend summary, divergence |
 | `core/detector.py` | Volume, turnover, return anomaly detection |
 | `formatter/detailed.py` | Markdown detailed renderer |

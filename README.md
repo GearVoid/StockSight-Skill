@@ -124,6 +124,14 @@ python scripts/render_examples.py
 
 这会把 `examples/` 中的 A 股、美股、无技术指标、高风险四个固定 snapshot 渲染到 `reports/examples/` 和 `outputs/examples/`，适合每次改 formatter 后做 HTML 对比。
 
+生成长截图：
+
+```bash
+python scripts/screenshot_report.py reports/002346.html --out docs/images/002346-full.png
+```
+
+这个脚本会自动寻找本机 Chrome / Edge，用 headless 模式把 HTML 报告截成一张长 PNG。也可以通过 `STOCKSIGHT_BROWSER` 指定浏览器路径。
+
 需要 PDF 时，先生成 HTML，再用你自己的浏览器或系统 PDF 工具导出。项目内部不再维护 PDF 导出脚本，避免不同系统字体导致中文乱码。
 
 ## Agent 工作流
@@ -369,6 +377,14 @@ python scripts/render_examples.py
 ```
 
 This renders the A-share, US equity, no-technical-data, and high-risk snapshots from `examples/` into `reports/examples/` and `outputs/examples/` for formatter comparison.
+
+Capture a long screenshot:
+
+```bash
+python scripts/screenshot_report.py reports/TSLA.html --out docs/images/TSLA-full.png
+```
+
+The script auto-detects local Chrome / Edge and captures a long PNG. Set `STOCKSIGHT_BROWSER` when the browser executable lives in a custom path.
 
 If you need PDF, generate HTML first and export it from your own browser or system PDF tools. The project no longer ships a PDF exporter because system fonts made Chinese output unreliable.
 
