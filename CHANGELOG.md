@@ -1,5 +1,13 @@
 ﻿# Changelog
 
+## v0.3.1 - 2026-05-22
+
+README presentation refresh release.
+
+### Changed
+- Replaced the previous split README screenshots with one full AAPL report screenshot that shows the report flow end to end.
+- Bumped the README badge and HTML footer version to `v0.3.1`.
+
 ## v0.3.0 - 2026-05-21
 
 Source-chain reproducibility and risk-model clarity release. Reports now separate unusual-move strength from downside risk and can prioritize A-share announcements, filings, and other hard information ahead of generic news.
