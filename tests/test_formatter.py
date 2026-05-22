@@ -51,7 +51,7 @@ class FormatterTests(unittest.TestCase):
         self.assertIn("数据可信度", html)
         self.assertIn("行情时间", html)
         self.assertIn("Snapshot", html)
-        self.assertIn("StockSight v0.3.0", html)
+        self.assertIn("StockSight v0.3.1", html)
         self.assertIn("异动强度", html)
         self.assertIn("下行风险", html)
         self.assertIn("异动强度拆解", html)
