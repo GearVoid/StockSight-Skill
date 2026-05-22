@@ -35,6 +35,12 @@ For a one-command live report:
 python scripts/report.py 002346 --mode detailed --html --out reports/002346.html
 ```
 
+To capture a long PNG screenshot from an HTML report:
+
+```bash
+python scripts/screenshot_report.py reports/002346.html --out docs/images/002346-full.png
+```
+
 For reproducible cross-agent output, save a snapshot once and render from it later:
 
 ```bash
@@ -70,6 +76,7 @@ News providers are optional. Supported API key sources:
 - Use `references/examples.md` for full standard, detailed, cross-market, and news-enabled examples.
 - Use lightweight GitHub-compatible HTML (`<kbd>` and `<details>`) plus Unicode signal bars for Markdown polish.
 - Use `render_html_report` for a full browser-ready page with built-in CSS charts; do not hand-write one-off HTML reports as the core output path.
+- Use `scripts/screenshot_report.py` when the user wants a shareable long screenshot of a generated HTML report.
 - Put a data source line at the end of every report.
 - Do not block the core report on missing news API keys, news provider failures, or empty news results.
 - Treat announcement/filing items as context, not as deterministic trading signals unless the detector or technical analysis also supports the conclusion.

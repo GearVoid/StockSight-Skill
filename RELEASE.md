@@ -94,9 +94,10 @@ Suggested flow:
 
 ```bash
 py -3 scripts/render_examples.py
+py -3 scripts/screenshot_report.py reports/examples/us-detailed.html --out docs/images/stocksight-report-full.png
 ```
 
-Review the rendered files in `reports/examples/`, then capture the relevant viewport into `docs/images/` when the README screenshots need to change.
+Review the rendered files in `reports/examples/`, then capture a long screenshot into `docs/images/` when the README screenshots need to change.
 
 ### 8. Commit, Tag, Push
 
