@@ -11,11 +11,7 @@ StockSight-Skill 不是“再写一个行情脚本”。它更像一个小型盘
 
 > Feed it a ticker. It returns a market brief your agent can actually hand to a human.
 
-![StockSight report overview](docs/images/stocksight-report-overview.png)
-
-![StockSight risk dashboard and radar](docs/images/stocksight-report-risk-gauge.png)
-
-![StockSight technical and data panels](docs/images/stocksight-report-technical.png)
+![StockSight full AAPL report](docs/images/stocksight-report-full.png)
 
 ## 亮点
 
