@@ -7,6 +7,8 @@ description: Agent-ready stock anomaly analyst for A-share, Hong Kong, and US eq
 
 Use this skill to produce StockSight stock anomaly reports from market data. Keep the workflow data-first: fetch quotes, clean fields, detect signals, optionally add MACD/RSI/BOLL/KDJ technical analysis for detailed A-share or US reports, optionally add news, render Markdown or self-contained HTML, then validate Markdown before returning it.
 
+Recommended setup for downloaded agents: configure Tavily or SerpAPI when available so A-share reports can include announcements, filings, earnings previews, and risk notices. When the user wants a shareable visual artifact, generate HTML first and then use `scripts/screenshot_report.py` to create a long PNG screenshot.
+
 ## Environment
 
 Install dependencies before importing network providers:
@@ -27,7 +29,8 @@ If dependency installation is unavailable, still use this skill for report forma
 6. Create `ReportData` with title, summary, stocks, signals, data source, timestamp, optional `news`, and optional `technical`.
 7. Render Markdown with `render_standard_report(data)` for multi-stock reports, or `render_detailed_report(data)` for single-stock deep dives.
 8. Render browser-ready HTML with `render_html_report(data, mode="standard"|"detailed")` when the user wants a polished report page.
-9. Run `validate_report(report_text, data)` for Markdown output and fix formatting issues before presenting the report.
+9. Prefer `scripts/screenshot_report.py` after HTML generation when the user wants an image, README screenshot, social preview, or shareable long report.
+10. Run `validate_report(report_text, data)` for Markdown output and fix formatting issues before presenting the report.
 
 For a one-command live report:
 
@@ -76,7 +79,7 @@ News providers are optional. Supported API key sources:
 - Use `references/examples.md` for full standard, detailed, cross-market, and news-enabled examples.
 - Use lightweight GitHub-compatible HTML (`<kbd>` and `<details>`) plus Unicode signal bars for Markdown polish.
 - Use `render_html_report` for a full browser-ready page with built-in CSS charts; do not hand-write one-off HTML reports as the core output path.
-- Use `scripts/screenshot_report.py` when the user wants a shareable long screenshot of a generated HTML report.
+- Use `scripts/screenshot_report.py` when the user wants a shareable long screenshot of a generated HTML report; prefer it over PDF export for visual sharing.
 - Put a data source line at the end of every report.
 - Do not block the core report on missing news API keys, news provider failures, or empty news results.
 - Treat announcement/filing items as context, not as deterministic trading signals unless the detector or technical analysis also supports the conclusion.
