@@ -7,6 +7,8 @@ track, not an order instruction.
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+import re
 from typing import List, Optional, Sequence
 
 from .types import NewsItem, RiskSignal, StockData, TechnicalAnalysis
@@ -19,6 +21,7 @@ ACTION_BREAKOUT_CONFIRM = "突破确认"
 ACTION_TREND_HOLD = "趋势持有"
 ACTION_LOW_REPAIR = "低位修复"
 ACTION_STABLE_TRACK = "平稳跟踪"
+HARD_RISK_NEWS_MAX_AGE_DAYS = 120
 
 
 @dataclass(frozen=True)
@@ -44,7 +47,9 @@ def evaluate_strategy_action(
     signals = list(signals or [])
     news = list(news or [])
     max_level = max((int(signal.level or 0) for signal in signals), default=0)
-    text = _combined_text(signals, news)
+    signal_text = _combined_signal_text(signals)
+    active_hard_risk_news = _active_hard_risk_news(stock, news)
+    active_hard_risk_text = _combined_news_text(active_hard_risk_news)
 
     trend = getattr(technical, "trend", None) if technical else None
     macd_alignment = getattr(trend, "macd_alignment", "") or ""
@@ -60,8 +65,12 @@ def evaluate_strategy_action(
     price_position = _boll_position(stock.current_price, boll_latest)
     kdj_j = kdj_latest[2] if kdj_latest else None
 
-    hard_risk = _has_hard_risk(text)
-    downside = _has_downside_signal(text) or (change <= -3 and vr >= 1.5)
+    hard_risk = bool(active_hard_risk_news)
+    downside = (
+        _has_downside_signal(signal_text)
+        or _has_downside_signal(active_hard_risk_text)
+        or (change <= -3 and vr >= 1.5)
+    )
     overheated = (
         (rsi_latest is not None and rsi_latest >= 75)
         or divergence == "bearish"
@@ -210,14 +219,90 @@ def _basis(
     return items[:6]
 
 
-def _combined_text(signals: Sequence[RiskSignal], news: Sequence[NewsItem]) -> str:
-    signal_text = " ".join(
+def _combined_signal_text(signals: Sequence[RiskSignal]) -> str:
+    return " ".join(
         f"{signal.risk_type} {signal.description}" for signal in signals
     )
-    news_text = " ".join(
+
+
+def _combined_news_text(news: Sequence[NewsItem]) -> str:
+    return " ".join(
         f"{item.title} {item.source} {item.snippet}" for item in news
     )
-    return f"{signal_text} {news_text}"
+
+
+def _active_hard_risk_news(stock: StockData, news: Sequence[NewsItem]) -> List[NewsItem]:
+    report_date = _parse_reference_date(stock.timestamp)
+    active: List[NewsItem] = []
+    for item in news:
+        text = _news_text(item)
+        if not _news_matches_stock(text, stock):
+            continue
+        if not _has_hard_risk(text):
+            continue
+        event_date = _extract_news_date(item)
+        if event_date is None:
+            continue
+        age_days = abs((report_date - event_date).days)
+        if age_days <= HARD_RISK_NEWS_MAX_AGE_DAYS:
+            active.append(item)
+    return active
+
+
+def _news_text(item: NewsItem) -> str:
+    return f"{item.title} {item.source} {item.snippet} {item.published_at} {item.url}"
+
+
+def _news_matches_stock(text: str, stock: StockData) -> bool:
+    lowered = text.lower()
+    return bool(
+        (stock.code and stock.code.lower() in lowered)
+        or (stock.name and stock.name.lower() in lowered)
+    )
+
+
+def _parse_reference_date(value: str) -> datetime:
+    parsed = _parse_date_text(value)
+    return parsed or datetime.now()
+
+
+def _extract_news_date(item: NewsItem) -> Optional[datetime]:
+    return _parse_date_text(_news_text(item))
+
+
+def _parse_date_text(text: str) -> Optional[datetime]:
+    if not text:
+        return None
+
+    relative_today = ("刚刚", "分钟前", "小时前", "今天")
+    if any(token in text for token in relative_today):
+        return datetime.now()
+    if "昨天" in text:
+        return (datetime.now() - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    match = re.search(r"(20\d{2})[-/.年](\d{1,2})[-/.月](\d{1,2})", text)
+    if match:
+        year, month, day = (int(part) for part in match.groups())
+        return _safe_datetime(year, month, day)
+
+    match = re.search(r"(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日", text)
+    if match:
+        year, month, day = (int(part) for part in match.groups())
+        return _safe_datetime(year, month, day)
+
+    match = re.search(r"\b(\d{1,2})[-/](\d{1,2})(?:\s+\d{1,2}:\d{2})?\b", text)
+    if match:
+        month, day = (int(part) for part in match.groups())
+        year = datetime.now().year
+        return _safe_datetime(year, month, day)
+    return None
+
+
+def _safe_datetime(year: int, month: int, day: int) -> Optional[datetime]:
+    try:
+        return datetime(year, month, day)
+    except ValueError:
+        return None
 
 
 def _has_hard_risk(text: str) -> bool:
