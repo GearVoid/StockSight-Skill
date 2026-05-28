@@ -31,6 +31,31 @@ DEFAULT_HEIGHT = 5200
 DEFAULT_ENGINE = "auto"
 ENGINES = ("auto", "playwright", "cdp", "chrome")
 
+DISABLE_CAPTURE_ANIMATIONS_SCRIPT = r"""
+(() => {
+  const id = "stocksight-capture-animation-guard";
+  if (document.getElementById(id)) {
+    return;
+  }
+  const style = document.createElement("style");
+  style.id = id;
+  style.textContent = `
+    *, *::before, *::after {
+      animation: none !important;
+      transition: none !important;
+      scroll-behavior: auto !important;
+    }
+    .panel,
+    .judgment-hero,
+    header {
+      opacity: 1 !important;
+      transform: none !important;
+    }
+  `;
+  document.head.appendChild(style);
+})();
+"""
+
 
 WINDOWS_BROWSER_CANDIDATES = [
     r"C:\Program Files\Google\Chrome\Application\chrome.exe",
@@ -168,6 +193,7 @@ def capture_screenshot_playwright(
                 )
                 page.goto(html_uri, wait_until="load", timeout=timeout * 1000)
                 page.evaluate("document.fonts ? document.fonts.ready : Promise.resolve()")
+                page.evaluate(DISABLE_CAPTURE_ANIMATIONS_SCRIPT)
                 page.screenshot(
                     path=str(output_path.resolve()),
                     full_page=True,
@@ -430,6 +456,13 @@ def capture_screenshot_cdp(
                 cdp.request(
                     "Runtime.evaluate",
                     {
+                        "expression": DISABLE_CAPTURE_ANIMATIONS_SCRIPT,
+                        "awaitPromise": True,
+                    },
+                )
+                cdp.request(
+                    "Runtime.evaluate",
+                    {
                         "expression": "new Promise(resolve => setTimeout(resolve, 1400))",
                         "awaitPromise": True,
                     },
@@ -445,6 +478,13 @@ def capture_screenshot_cdp(
                         "height": content_height,
                         "deviceScaleFactor": 1,
                         "mobile": False,
+                    },
+                )
+                cdp.request(
+                    "Runtime.evaluate",
+                    {
+                        "expression": DISABLE_CAPTURE_ANIMATIONS_SCRIPT,
+                        "awaitPromise": True,
                     },
                 )
                 screenshot = cdp.request(
