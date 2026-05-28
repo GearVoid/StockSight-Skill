@@ -7,7 +7,7 @@ from typing import Dict, List, Sequence, Tuple
 
 from core import ReportData, RiskSignal, StockData
 
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 
 LEVEL_COLORS = {
     1: "#d79b2b",

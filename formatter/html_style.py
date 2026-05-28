@@ -545,6 +545,49 @@ def _style() -> str:
     .dc-action-badge.healthy { background: #16794c; }
     .dc-action-badge.watch { background: #d79b2b; }
     .dc-action-badge.caution { background: #d36b23; }
+    .dc-action-badge.danger { background: #c2412d; }
+    .dc-strategy-details {
+      margin-top: 12px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #ffffff;
+    }
+    .dc-strategy-details p {
+      margin: 0 0 10px;
+      color: var(--text);
+      font-weight: 700;
+    }
+    .dc-strategy-details ul {
+      margin: 0 0 12px 18px;
+      padding: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .dc-strategy-details li { margin: 4px 0; }
+    .dc-strategy-details dl {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin: 0;
+    }
+    .dc-strategy-details dl div {
+      padding: 10px;
+      background: #f8fafc;
+      border-radius: 8px;
+    }
+    .dc-strategy-details dt {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .dc-strategy-details dd {
+      margin: 0;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.55;
+    }
     .dc-disclaimer { margin-top: 12px; text-align: center; }
 
     /* ---- 最终判断 ---- */
@@ -1109,6 +1152,7 @@ def _style() -> str:
       .side-nav { display: none; }
       .decision-card { grid-template-columns: 1fr; gap: 8px; }
       .dc-divider { width: 60px; height: 1px; margin: 0 auto; }
+      .dc-strategy-details dl { grid-template-columns: 1fr; }
       .radar-dashboard { grid-template-columns: 1fr; }
       .radar-stage { min-height: auto; }
       .signal-row { grid-template-columns: 32px 1fr; }

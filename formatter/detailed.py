@@ -17,7 +17,7 @@
 
 from typing import List, Optional
 
-from core import RiskSignal, StockData, ReportData, technical_risk_signals
+from core import RiskSignal, StockData, ReportData, evaluate_strategy_action, technical_risk_signals
 from .base import (
     EmojiMap,
     change_emoji,
@@ -433,24 +433,21 @@ def render_detailed_report(data: ReportData) -> str:
     # 14. 操作建议
     parts.append(f"## {EmojiMap.CONCLUSION} 操作建议")
     parts.append("")
-    max_level = max((s.level for s in signals), default=0)
+    decision = evaluate_strategy_action(stock, signals, data.technical, data.news)
     mk = stock.market
-    if max_level >= 2:
-        parts.append(f"{EmojiMap.OP_HOLD} **持有/观望**")
-        parts.append("")
-        parts.append(f"- 当前价：{format_price(stock.current_price, mk)}")
-        parts.append(f"- 止损参考：{format_price(_stop_loss(stock.current_price), mk)}（-5%）")
-        parts.append(f"- 目标参考：{format_price(_target_price(stock.current_price), mk)}（+5.6%）")
-    elif max_level >= 1:
-        parts.append(f"{EmojiMap.OP_BUY} **可关注**")
-        parts.append("")
-        parts.append(f"- 当前价：{format_price(stock.current_price, mk)}")
-        parts.append(f"- 轻度异动，建议确认量能持续性后再决策")
-    else:
-        parts.append(f"{EmojiMap.OP_BUY} **正常持有**")
-        parts.append("")
-        parts.append(f"- 当前价：{format_price(stock.current_price, mk)}")
-        parts.append("- 量价配合正常，按既定策略执行")
+    icon = EmojiMap.OP_SELL if decision.tone == "danger" else EmojiMap.OP_HOLD if decision.tone in ("warning", "watch") else EmojiMap.OP_BUY
+    parts.append(f"{icon} **{decision.action}**")
+    parts.append("")
+    parts.append(decision.summary)
+    parts.append("")
+    parts.append(f"- 当前价：{format_price(stock.current_price, mk)}")
+    parts.append(f"- 止损参考：{format_price(_stop_loss(stock.current_price), mk)}（-5%）")
+    parts.append(f"- 目标参考：{format_price(_target_price(stock.current_price), mk)}（+5.6%）")
+    if decision.basis:
+        parts.append(f"- 触发依据：{'；'.join(decision.basis)}")
+    parts.append(f"- 确认条件：{decision.confirmation}")
+    parts.append(f"- 失效条件：{decision.invalidation}")
+    parts.append(f"- 风险备注：{decision.risk_note}")
     parts.append("")
     parts.append("> 以上参考数值基于技术指标计算，不构成投资建议。")
     parts.append("")
