@@ -4,7 +4,7 @@
 from typing import Dict, List, Sequence, Tuple
 import math
 
-from core import RiskSignal, StockData
+from core import RiskSignal, StockData, evaluate_strategy_action
 from .base import (
     fmt_signal_level,
     final_judgment,
@@ -117,22 +117,19 @@ def _risk_gauge_html(top_level: int, signals: Sequence[RiskSignal]) -> str:
 # 操作建议决策卡
 # =============================================================================
 
-def _decision_card_html(stock: StockData, signals: Sequence[RiskSignal]) -> str:
+def _decision_card_html(stock: StockData, signals: Sequence[RiskSignal], technical=None, news=None) -> str:
     price = stock.current_price
     mk = stock.market
     stop_loss = round(price * 0.95, 2)
     target = round(price * 1.056, 2)
-    max_level = max((s.level for s in signals), default=0)
-
-    if max_level >= 2:
-        action = "持有/观望"
-        action_class = "caution"
-    elif max_level >= 1:
-        action = "可关注"
-        action_class = "watch"
-    else:
-        action = "正常持有"
-        action_class = "healthy"
+    decision = evaluate_strategy_action(stock, signals, technical, news)
+    action_class = {
+        "danger": "danger",
+        "warning": "caution",
+        "watch": "watch",
+        "healthy": "healthy",
+    }.get(decision.tone, "watch")
+    basis = "".join(f"<li>{_html(item)}</li>" for item in decision.basis)
 
     return (
         '<section class="panel" id="decision">'
@@ -146,7 +143,7 @@ def _decision_card_html(stock: StockData, signals: Sequence[RiskSignal]) -> str:
         "</div>"
         '<div class="dc-divider"></div>'
         '<div class="dc-col dc-current">'
-        f'<span class="dc-action-badge {action_class}">{_html(action)}</span>'
+        f'<span class="dc-action-badge {action_class}">{_html(decision.action)}</span>'
         '<span class="dc-label">当前价</span>'
         f'<strong class="dc-price dc-price-main">{_html(format_price(price, mk))}</strong>'
         "</div>"
@@ -158,6 +155,15 @@ def _decision_card_html(stock: StockData, signals: Sequence[RiskSignal]) -> str:
         '<span class="dc-note">+5.6%</span>'
         "</div>"
         "</div>"
+        '<div class="dc-strategy-details">'
+        f'<p>{_html(decision.summary)}</p>'
+        + (f'<ul>{basis}</ul>' if basis else '')
+        + '<dl>'
+        f'<div><dt>确认条件</dt><dd>{_html(decision.confirmation)}</dd></div>'
+        f'<div><dt>失效条件</dt><dd>{_html(decision.invalidation)}</dd></div>'
+        f'<div><dt>风险备注</dt><dd>{_html(decision.risk_note)}</dd></div>'
+        '</dl>'
+        '</div>'
         '<p class="muted dc-disclaimer">以上参考数值基于技术指标计算，不构成投资建议。</p>'
         "</section>"
     )

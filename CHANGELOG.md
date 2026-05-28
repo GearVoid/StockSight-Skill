@@ -1,5 +1,22 @@
 ﻿# Changelog
 
+## v0.3.2 - 2026-05-28
+
+Strategy-action release. Reports now distinguish risk detection from strategy posture, so medium technical moves no longer collapse into generic watch/hold copy.
+
+### Added
+- Rule-based strategy action layer with `趋势持有`, `突破确认`, `高位降温`, `回撤观察`, `低位修复`, `平稳跟踪`, and `风险规避`.
+- Strategy explanations in Markdown and HTML reports, including trigger basis, confirmation conditions, invalidation conditions, and risk notes.
+
+### Changed
+- Detailed report operation advice now uses the strategy action layer instead of mapping `max_level >= 2` directly to `持有/观望`.
+- Hard-risk news only upgrades strategy risk when it is stock-relevant, date-parsable, and recent enough to affect the current report.
+- Bumped the README badge and HTML footer version to `v0.3.2`.
+
+### Fixed
+- Long screenshot capture now disables report animations before capture, preventing blank-looking gaps in exported PNGs.
+- Historical 2015/2016 risk notices can remain visible as context without overriding 2026 real-time technical judgment.
+
 ## v0.3.1 - 2026-05-22
 
 README presentation refresh release.
