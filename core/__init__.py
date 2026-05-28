@@ -29,6 +29,7 @@ from .analysis import (
     detect_rsi_signals,
     technical_risk_signals,
 )
+from .strategy import StrategyDecision, evaluate_strategy_action
 from .market import detect_market, detect_tencent_prefix, detect_sina_prefix, to_eastmoney_secid
 
 __all__ = [
@@ -68,4 +69,6 @@ __all__ = [
     "detect_macd_signals",
     "detect_rsi_signals",
     "technical_risk_signals",
+    "StrategyDecision",
+    "evaluate_strategy_action",
 ]

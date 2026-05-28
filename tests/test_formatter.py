@@ -39,6 +39,9 @@ class FormatterTests(unittest.TestCase):
         self.assertIn("数据来源链", report)
         self.assertIn("历史行情：unit-history", report)
         self.assertIn("使用 Snapshot", report)
+        self.assertIn("突破确认", report)
+        self.assertIn("确认条件", report)
+        self.assertIn("失效条件", report)
 
     def test_html_report_contains_split_sections(self):
         html = render_html_report(sample_report())
@@ -56,6 +59,8 @@ class FormatterTests(unittest.TestCase):
         self.assertIn("下行风险", html)
         self.assertIn("异动强度拆解", html)
         self.assertIn("价格波动", html)
+        self.assertIn("突破确认", html)
+        self.assertIn("确认条件", html)
 
     def test_news_context_splits_hard_info_and_market_news(self):
         data = sample_report(news=[
