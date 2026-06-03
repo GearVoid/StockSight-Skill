@@ -1,5 +1,26 @@
 ﻿# Changelog
 
+## v0.4.0 - 2026-06-03
+
+Strategy profiles and free A-share hard-information release. StockSight now keeps the default neutral posture while allowing agents to render operation suggestions from mainline, risk-screening, or swing-trend views.
+
+### Added
+- Added `--strategy risk_avoid` for a conservative risk-screening view that prioritizes ST/delisting, regulatory, earnings, reduction, pledge, hard-risk news, and breakdown signals.
+- Added `--strategy swing` for a swing-trend view covering breakout candidates, trend hold, pullback watch, cooldown, and exit conditions.
+- Added optional AkShare quote/history provider support for A-share fallback usage.
+- Added free CNINFO and EastMoney announcement providers to the `--news` chain before optional Tavily/SerpAPI market-news providers.
+- Added tests for strategy-profile rendering, snapshot compatibility, provider fallbacks, and free announcement parsing.
+
+### Changed
+- Expanded `--strategy` choices to `neutral`, `mainline`, `risk_avoid`, and `swing`; neutral remains the default report posture.
+- Updated AGENTS/README/SKILL guidance so agents ask users which strategy view they prefer after installation.
+- A-share history and quote chains now expose optional AkShare fallback behavior without requiring AkShare in the default install.
+- Bumped the README badge and HTML footer version to `v0.4.0`.
+
+### Fixed
+- Corrected EastMoney A-share change-percent field parsing and sector benchmark turnover/change mapping.
+- Prevented Tencent quote parsing from misclassifying unsupported US tickers in auto-provider mode.
+
 ## v0.3.3 - 2026-06-03
 
 Cloud screenshot fallback guidance release. Agent installations now document the reliable Playwright/CDP paths for long report screenshots on Ubuntu cloud hosts.

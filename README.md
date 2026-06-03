@@ -1,13 +1,13 @@
 ﻿# StockSight-Skill
 
-[![Version](https://img.shields.io/badge/version-v0.3.3-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.3.3)
+[![Version](https://img.shields.io/badge/version-v0.4.0-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.4.0)
 [![Python](https://img.shields.io/badge/python-3.9%2B-2563eb)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
 [![Skill Ready](https://img.shields.io/badge/Codex%20Skill-ready-f97316)](SKILL.md)
 
-**给 agent 用的股票异动分析技能：抓行情、洗坏数据、识别风险信号，然后生成一份像金融终端快报一样的 Markdown / HTML 报告。**
+**给 agent 用的股票异动分析技能：抓行情、洗坏数据、接免费公告源、识别风险信号，并按中立、主线、排雷或波段视角生成金融终端感的 Markdown / HTML 报告。**
 
-StockSight-Skill 不是“再写一个行情脚本”。它更像一个小型盘后分析员：先把数据按住，再把异常拎出来，最后用清楚、漂亮、可复现的方式交给用户。
+StockSight-Skill 不是“再写一个行情脚本”。它更像一个小型盘后分析员：先把数据按住，再把异常和硬信息拎出来，最后用清楚、漂亮、可复现的方式交给用户。
 
 > Feed it a ticker. It returns a market brief your agent can actually hand to a human.
 
@@ -16,7 +16,7 @@ StockSight-Skill 不是“再写一个行情脚本”。它更像一个小型盘
 ## 亮点
 
 - **Agent-ready**：标准 `SKILL.md` 入口，Codex / agent 可以发现、触发、使用。
-- **跨市场**：支持 A 股、港股、美股；内置腾讯财经、Yahoo Finance、新浪财经、东方财富 provider。
+- **跨市场**：支持 A 股、港股、美股；内置腾讯财经、Yahoo Finance、新浪财经、东方财富 provider，并可选接入 AkShare。
 - **异动识别**：检测量比偏离、换手率异常、收益偏离、MACD、RSI 等技术信号。
 - **可信度先行**：明显异常字段会显示为 `—`，并标明“可确认 / 推导 / 不可用 / 历史计算”，避免坏数据带偏结论。
 - **最终判断区**：详细报告会给出核心结论、主要风险和下一步确认点，让 agent 输出更像分析员而不是表格搬运工。
@@ -24,7 +24,8 @@ StockSight-Skill 不是“再写一个行情脚本”。它更像一个小型盘
 - **来源链可见**：报告顶部展示实时行情源、历史行情源、fallback 状态和历史 K 线条数。
 - **双输出**：Markdown 适合 agent 直接回复，HTML 适合正式报告和分享。
 - **轻量可视化**：风险仪表盘、信号雷达、MACD/RSI/BOLL/KDJ、风险分布、信号构成、数据完整性与可信度面板。
-- **硬信息优先**：配置 Tavily 或 SerpAPI 后优先检索公告、财报、业绩预告、风险提示，再用市场新闻兜底。
+- **硬信息优先**：`--news` 默认先查巨潮资讯和东方财富公告等免费公开公告源；配置 Tavily 或 SerpAPI 后再补市场新闻和舆情。
+- **可选策略视角**：默认保持 `neutral` 中立口径，也可显式切到 `mainline`、`risk_avoid`、`swing` 生成不同操作建议视角。
 - **可复现快照**：用 snapshot 固定行情、信号、资讯和质量提示，减少不同 agent 之间的自由发挥。
 - **最小测试套件**：覆盖 formatter、validator、质量清洗、市场识别、Yahoo provider、snapshot 回放。
 
@@ -71,8 +72,9 @@ python scripts/screenshot_report.py reports/sample.html --out reports/sample-ful
 
 下载后建议先做两件事：
 
-1. **配置新闻搜索**：填好 `.sightconfig.json` 或环境变量，让 A 股报告能检索公告、财报、业绩预告、风险提示等硬信息。没有 key 也能生成核心报告，只是会跳过公司信息区。
-2. **优先分享长截图**：生成 HTML 后用 `scripts/screenshot_report.py` 导出长 PNG，比浏览器打印 PDF 更稳定，也更适合发给人看。
+1. **启用新闻搜索**：`--news` 会先查免费的巨潮资讯和东方财富公告；填好 `.sightconfig.json` 或环境变量后，还能追加 Tavily / SerpAPI 的市场新闻搜索。没有 key 也能生成公告硬信息区。
+2. **选择策略视角**：安装或第一次交给 agent 使用时，建议让 agent 问用户默认偏好：`neutral`、`mainline`、`risk_avoid`、`swing`。未指定时保持 `neutral`。
+3. **优先分享长截图**：生成 HTML 后用 `scripts/screenshot_report.py` 导出长 PNG，比浏览器打印 PDF 更稳定，也更适合发给人看。
 
 ### 其它 Agent（Hermes / Cursor / 通用）
 
@@ -100,6 +102,23 @@ git clone https://github.com/GearVoid/StockSight-Skill.git
 python scripts/report.py 002346 --mode detailed --html --out reports/002346.html
 python scripts/screenshot_report.py reports/002346.html --out reports/002346-full.png
 ```
+
+启用可选策略视角：
+
+```bash
+python scripts/report.py 002346 --mode detailed --strategy mainline --html --out reports/002346-mainline.html --markdown-out outputs/002346-mainline.md
+python scripts/report.py 002346 --mode detailed --strategy risk_avoid --html --out reports/002346-risk.html --markdown-out outputs/002346-risk.md
+python scripts/report.py 002346 --mode detailed --strategy swing --html --out reports/002346-swing.html --markdown-out outputs/002346-swing.md
+```
+
+`--strategy` 只改变“操作建议”的策略视角，默认不启用，普通用户继续得到 `neutral` 中立报告口径。
+
+| Strategy | 视角 | 适合场景 |
+|:---|:---|:---|
+| `neutral` | 中立默认口径 | 通用报告，不带个人策略偏好 |
+| `mainline` | A 股主线第一波中段趋势策略 | 判断当前个股是否适配主线中段试错 |
+| `risk_avoid` | 风险排雷视角 | 优先筛 ST/退市、监管、减持、业绩、破位等风险 |
+| `swing` | 波段趋势视角 | 看突破、回踩、趋势持有和退出条件 |
 
 生成美股报告：
 
@@ -145,11 +164,11 @@ python scripts/screenshot_report.py reports/002346.html --out docs/images/002346
 
 ## Agent 工作流
 
-1. 获取行情：`TencentDataSource`、`YahooFinanceDataSource`、`SinaDataSource` 或 `EastMoneyDataSource`。
+1. 获取行情：`TencentDataSource`、`YahooFinanceDataSource`、`SinaDataSource`、`EastMoneyDataSource`，或可选的 `AkShareDataSource`。
 2. 清洗行情：`normalize_quote_data(stocks)`。
 3. 检测异动：`detect(stocks)` 或 `detect_anomalies(stocks)`。
-4. 详细单股报告可计算技术指标：A 股优先用 EastMoney 历史 K 线，并自动回退到 Sina/Tencent K 线；美股用 Yahoo history，输出 MACD / RSI / BOLL / KDJ。
-5. 可选资讯：`search_configured_news(stocks)` 会先跑公告/财报/业绩/风险提示 query 模板，按交易所、巨潮、东方财富、公司官网等可信源优先排序，再补充市场新闻。
+4. 详细单股报告可计算技术指标：A 股优先用 EastMoney 历史 K 线，并自动回退到 AkShare、Sina/Tencent K 线；美股用 Yahoo history，输出 MACD / RSI / BOLL / KDJ。
+5. 可选资讯：`search_configured_news(stocks)` 会先查巨潮资讯、东方财富公告等免费公开硬信息源，再按公告/财报/业绩/风险提示 query 模板调用已配置的 Tavily / SerpAPI 搜索兜底。
 6. 渲染报告：Markdown 用 `render_standard_report` / `render_detailed_report`，HTML 用 `render_html_report`；详细报告会自动生成最终判断和数据可信度说明。
 7. 校验输出：Markdown 用 `validate_report(report_text, data)`。
 8. 追求一致性时：优先 `--save-snapshot`，后续一律 `--from-snapshot` 渲染；报告顶部会标明 snapshot 来源和指标截止日期。
@@ -186,11 +205,11 @@ from providers import TencentDataSource, YahooFinanceDataSource
 
 ## 配置
 
-资讯是可选能力。没有 API key 时，StockSight-Skill 会跳过资讯区块，但仍然生成核心行情和风险报告。
+资讯是可选能力。没有 API key 时，StockSight-Skill 仍会尝试通过免费的巨潮资讯和东方财富公告源获取 A 股公告硬信息；Tavily / SerpAPI 只用于补充更宽的市场新闻和舆情搜索。
 
-强烈建议给 agent 配置 Tavily 或 SerpAPI。启用后，A 股报告不只是“行情 + 指标”，还会优先补公告、财报、业绩预告、风险提示等硬信息，报告判断会更像复盘而不是泛泛搜索。
+建议给 agent 配置 Tavily 或 SerpAPI，但它们不是必需。`--news` 会先用免费公告源补公告、财报、业绩预告、风险提示等硬信息；配置搜索 API 后，报告还能补充产业催化、媒体报道和市场舆情。
 
-启用资讯后，报告会分成“公司公告与硬信息”和“市场资讯与舆情”。当前版本不引入重型公告 SDK，而是通过 Tavily / SerpAPI 执行更严格的 A 股 query 模板，并给结果打上公告、财报、业绩预告、风险提示等标签。交易所、巨潮资讯、东方财富公告、公司官网等来源会优先展示；普通新闻只作为兜底背景。
+启用资讯后，报告会分成“公司公告与硬信息”和“市场资讯与舆情”。当前版本优先直连免费公开公告源，再通过 Tavily / SerpAPI 执行更严格的 A 股 query 模板，并给结果打上公告、财报、业绩预告、风险提示等标签。巨潮资讯、东方财富公告、交易所、公司官网等来源会优先展示；普通新闻只作为兜底背景。
 
 参考 `config.example.json` 创建 `.sightconfig.json`：
 
@@ -267,7 +286,7 @@ StockSight-Skill/
 
 # StockSight-Skill
 
-[![Version](https://img.shields.io/badge/version-v0.3.3-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.3.3)
+[![Version](https://img.shields.io/badge/version-v0.4.0-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.4.0)
 [![Python](https://img.shields.io/badge/python-3.9%2B-2563eb)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
 [![Skill Ready](https://img.shields.io/badge/Codex%20Skill-ready-f97316)](SKILL.md)
@@ -453,9 +472,9 @@ Stable interfaces:
 
 News is optional. Without an API key, StockSight-Skill skips the news section and still renders the core market and risk report.
 
-Agents are encouraged to configure Tavily or SerpAPI after installation. With a key, A-share reports can prioritize announcements, filings, earnings previews, and risk notices before generic market news.
+Agents can use `--news` without a paid search key. StockSight first checks free public A-share announcement sources such as CNINFO and EastMoney notices, then uses Tavily or SerpAPI as optional market-news fallback when configured.
 
-When enabled, context is split into "Company Announcements & Hard Information" and "Market News & Sentiment". The current implementation keeps dependencies light: Tavily / SerpAPI provide search results, while StockSight controls A-share query templates, category labels, dedupe, and source ranking.
+When enabled, context is split into "Company Announcements & Hard Information" and "Market News & Sentiment". Free announcement providers are tried first; Tavily / SerpAPI provide broader search results only when configured, while StockSight controls A-share query templates, category labels, dedupe, and source ranking.
 
 Use `config.example.json` as the shape for `.sightconfig.json`:
 

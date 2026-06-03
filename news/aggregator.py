@@ -21,25 +21,53 @@ from .hard_info import (
 NEWS_QUERY_TYPES = default_query_types()
 
 
+class CompositeNewsProvider(NewsProvider):
+    """Run multiple providers in priority order with cross-provider dedupe."""
+
+    def __init__(self, providers: Sequence[NewsProvider]):
+        self.providers = list(providers)
+
+    def name(self) -> str:
+        return " + ".join(provider.name() for provider in self.providers)
+
+    def search(self, query: str, max_results: int = 5) -> List[NewsItem]:
+        items: List[NewsItem] = []
+        seen: Set[str] = set()
+        for provider in self.providers:
+            for item in provider.search(query, max_results=max_results):
+                key = _dedupe_key(item)
+                if not key or key in seen:
+                    continue
+                seen.add(key)
+                items.append(item)
+                if len(items) >= max_results:
+                    return items
+        return items
+
+
 def create_configured_news_provider() -> Optional[NewsProvider]:
-    """Create the configured optional news provider, or None."""
+    """Create the free-first news provider chain."""
+    from .providers import CninfoAnnouncementProvider, EastMoneyNoticeProvider
+
+    providers: List[NewsProvider] = [
+        CninfoAnnouncementProvider(),
+        EastMoneyNoticeProvider(),
+    ]
+
     provider_name = get_active_provider()
     if not provider_name:
-        return None
+        return CompositeNewsProvider(providers)
 
     api_key = get_api_key(provider_name)
-    if not api_key:
-        return None
-
-    if provider_name == "tavily":
+    if provider_name == "tavily" and api_key:
         from .providers import TavilyNewsProvider
 
-        return TavilyNewsProvider(api_key)
-    if provider_name == "serpapi":
+        providers.append(TavilyNewsProvider(api_key))
+    elif provider_name == "serpapi" and api_key:
         from .providers import SerpapiNewsProvider
 
-        return SerpapiNewsProvider(api_key)
-    return None
+        providers.append(SerpapiNewsProvider(api_key))
+    return CompositeNewsProvider(providers)
 
 
 def _dedupe_key(item: NewsItem) -> str:

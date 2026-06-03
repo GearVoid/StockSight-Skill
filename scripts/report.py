@@ -43,6 +43,7 @@ from formatter import (  # noqa: E402
 from news import search_configured_news  # noqa: E402
 from providers import (  # noqa: E402
     AShareHistoryDataSource,
+    AkShareDataSource,
     EastMoneyDataSource,
     SinaDataSource,
     TencentDataSource,
@@ -81,9 +82,9 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--provider",
-        choices=["auto", "tencent", "yahoo", "sina", "eastmoney"],
+        choices=["auto", "tencent", "yahoo", "sina", "eastmoney", "akshare"],
         default="auto",
-        help="Quote provider. auto uses Tencent, Yahoo, Sina, then EastMoney failover.",
+        help="Quote provider. auto uses Tencent, Yahoo, Sina, EastMoney, then optional AkShare failover.",
     )
     parser.add_argument(
         "--news",
@@ -95,6 +96,16 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         type=int,
         default=3,
         help="Maximum news items to include when --news is enabled.",
+    )
+    parser.add_argument(
+        "--strategy",
+        choices=["neutral", "mainline", "risk_avoid", "swing"],
+        help=(
+            "Optional strategy profile for detailed action suggestions. "
+            "neutral keeps the default posture; mainline applies the A-share "
+            "first-wave mainline trend profile; risk_avoid screens hard risks; "
+            "swing applies a general swing-trend profile."
+        ),
     )
     parser.add_argument(
         "--html",
@@ -157,7 +168,9 @@ def _source_chain(provider: str):
         return [YahooFinanceDataSource()]
     if provider == "eastmoney":
         return [EastMoneyDataSource()]
-    return [TencentDataSource(), YahooFinanceDataSource(), SinaDataSource(), EastMoneyDataSource()]
+    if provider == "akshare":
+        return [AkShareDataSource()]
+    return [TencentDataSource(), YahooFinanceDataSource(), SinaDataSource(), EastMoneyDataSource(), AkShareDataSource()]
 
 
 def _fetch_quotes(codes: Sequence[str], provider: str):
@@ -270,6 +283,7 @@ def _report_to_payload(data: ReportData) -> Dict[str, Any]:
         "news": [asdict(item) for item in data.news],
         "technical": asdict(data.technical) if data.technical else None,
         "source_notes": list(data.source_notes),
+        "strategy_profile": data.strategy_profile,
     }
 
 
@@ -301,6 +315,7 @@ def _report_from_payload(payload: Dict[str, Any]) -> ReportData:
         news=[_dataclass_from_dict(NewsItem, item) for item in payload.get("news", [])],
         technical=_technical_from_payload(payload.get("technical")),
         source_notes=list(payload.get("source_notes", [])),
+        strategy_profile=str(payload.get("strategy_profile", "neutral") or "neutral"),
     )
 
 
@@ -360,11 +375,15 @@ def _fetch_history_for_technical(stock: StockData):
     if stock.market in ("sh", "sz"):
         last_history = None
         last_source = "历史行情：不可用"
-        for source in (EastMoneyDataSource(), AShareHistoryDataSource()):
-            history = source.fetch_history(stock.code, days=80)
+        for source in (EastMoneyDataSource(), AkShareDataSource(), AShareHistoryDataSource()):
             source_name = source.name()
             if isinstance(source, AShareHistoryDataSource):
                 source_name = "Sina/Tencent fallback"
+            try:
+                history = source.fetch_history(stock.code, days=80)
+            except Exception:
+                last_source = f"历史行情：{source_name}（获取失败）"
+                continue
             if _has_enough_history(history):
                 return history, f"历史行情：{source_name}（{len(history.bars)}条）"
             if history and history.bars:
@@ -414,6 +433,7 @@ def _build_live_report(args, codes: Sequence[str]) -> Tuple[ReportData, str, Lis
         news=news,
         technical=technical,
         source_notes=source_notes,
+        strategy_profile=args.strategy or "neutral",
     )
     return data, mode, failed, quality_notes
 
@@ -433,6 +453,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return 2
         if args.title:
             data.title = args.title
+        if args.strategy:
+            data.strategy_profile = args.strategy
         mode = args.mode if args.mode != "auto" else _select_mode(str(meta.get("mode", "auto")), data.stocks)
         failed = list(meta.get("failed_codes", []))
         quality_notes = list(meta.get("quality_notes", []))
@@ -469,10 +491,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             print(str(validation), file=sys.stderr)
             return 3
 
-    markdown_path = _write_text(
-        args.markdown_out if args.html else args.out,
-        markdown,
-    )
+    markdown_target = args.markdown_out or (None if args.html else args.out)
+    markdown_path = _write_text(markdown_target, markdown)
     if markdown_path is None:
         print(markdown)
     else:

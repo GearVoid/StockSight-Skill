@@ -6,6 +6,7 @@ from news.aggregator import (
     NewsAggregator,
     _dedupe_key,
     _tag_snippet,
+    CompositeNewsProvider,
     create_configured_news_provider,
 )
 from news.hard_info import classify_category, classify_source, is_hard_info
@@ -130,10 +131,12 @@ class NewsAggregatorTests(unittest.TestCase):
         self.assertEqual(result[0].title, "平安银行年度报告公告")
         self.assertTrue(is_hard_info(result[0]))
 
-    def test_create_configured_news_provider_returns_none_when_not_configured(self):
+    def test_create_configured_news_provider_returns_free_chain_when_not_configured(self):
         with patch("news.aggregator.get_active_provider", return_value=None):
             provider = create_configured_news_provider()
-        self.assertIsNone(provider)
+        self.assertIsInstance(provider, CompositeNewsProvider)
+        self.assertIn("CNINFO", provider.name())
+        self.assertIn("EastMoney Notice", provider.name())
 
 
 if __name__ == "__main__":
@@ -145,6 +148,8 @@ if __name__ == "__main__":
 
 from news.providers.tavily import TavilyNewsProvider
 from news.providers.serpapi import SerpapiNewsProvider
+from news.providers.cninfo import CninfoAnnouncementProvider
+from news.providers.eastmoney_notice import EastMoneyNoticeProvider
 
 
 TAVILY_RESPONSE = {
@@ -177,6 +182,84 @@ SERPAPI_RESPONSE = {
         },
     ]
 }
+
+CNINFO_RESPONSE = {
+    "announcements": [
+        {
+            "secCode": "600570",
+            "secName": "恒生电子",
+            "orgId": "gssh0600570",
+            "announcementId": "1225347282",
+            "announcementTitle": "恒生电子股份有限公司2025年年度权益分派实施公告",
+            "announcementTime": 1780416000000,
+            "adjunctUrl": "finalpage/2026-06-03/1225347282.PDF",
+        },
+        {
+            "secCode": "000001",
+            "announcementTitle": "其他公司公告",
+        },
+    ]
+}
+
+EASTMONEY_NOTICE_RESPONSE = {
+    "data": {
+        "list": [
+            {
+                "art_code": "AN202605211822650332",
+                "columns": [{"column_name": "股东大会决议公告"}],
+                "notice_date": "2026-05-22 00:00:00",
+                "title": "柘中股份:2025年年度股东会决议公告",
+            }
+        ]
+    },
+    "success": True,
+}
+
+
+class FreeAnnouncementProviderTests(unittest.TestCase):
+    def test_cninfo_provider_parses_and_filters_announcements(self):
+        class FakeSession:
+            def get(self, url, params, headers, timeout):
+                class FakeResp:
+                    status_code = 200
+
+                    @staticmethod
+                    def json():
+                        return CNINFO_RESPONSE
+
+                return FakeResp()
+
+        provider = CninfoAnnouncementProvider()
+        provider._session = FakeSession()
+
+        items = provider.search("恒生电子 600570 公告", max_results=5)
+
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].source, "巨潮资讯")
+        self.assertIn("恒生电子", items[0].title)
+        self.assertIn("static.cninfo.com.cn", items[0].url)
+
+    def test_eastmoney_notice_provider_parses_announcements(self):
+        class FakeSession:
+            def get(self, url, params, headers, timeout):
+                class FakeResp:
+                    status_code = 200
+
+                    @staticmethod
+                    def json():
+                        return EASTMONEY_NOTICE_RESPONSE
+
+                return FakeResp()
+
+        provider = EastMoneyNoticeProvider()
+        provider._session = FakeSession()
+
+        items = provider.search("柘中股份 002346 公告", max_results=5)
+
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].source, "东方财富公告")
+        self.assertIn("年度股东会", items[0].title)
+        self.assertIn("data.eastmoney.com/notices/detail/002346", items[0].url)
 
 
 class TavilyProviderTests(unittest.TestCase):

@@ -1,13 +1,13 @@
 ---
 name: stocksight
-description: Agent-ready stock anomaly analyst for A-share, Hong Kong, and US equities. Use when Codex needs to fetch quotes, clean suspicious market fields, detect unusual volume/turnover/return/MACD/RSI/BOLL/KDJ signals, explain data credibility, add optional news context, render premium Markdown/HTML stock reports, replay deterministic snapshots, or validate StockSight report formatting.
+description: Agent-ready stock anomaly analyst for A-share, Hong Kong, and US equities. Use when Codex needs to fetch quotes, clean suspicious market fields, search free A-share announcement sources, detect unusual volume/turnover/return/MACD/RSI/BOLL/KDJ signals, choose neutral/mainline/risk_avoid/swing operation-suggestion views, render premium Markdown/HTML stock reports, replay deterministic snapshots, or validate StockSight report formatting.
 ---
 
 # StockSight
 
 Use this skill to produce StockSight stock anomaly reports from market data. Keep the workflow data-first: fetch quotes, clean fields, detect signals, optionally add MACD/RSI/BOLL/KDJ technical analysis for detailed A-share or US reports, optionally add news, render Markdown or self-contained HTML, then validate Markdown before returning it.
 
-Recommended setup for downloaded agents: configure Tavily or SerpAPI when available so A-share reports can include announcements, filings, earnings previews, and risk notices. When the user wants a shareable visual artifact, generate HTML first and then use `scripts/screenshot_report.py` to create a long PNG screenshot.
+Recommended setup for downloaded agents: ask the user which operation-suggestion view they want by default (`neutral`, `mainline`, `risk_avoid`, or `swing`), and use `neutral` when they do not choose. `--news` works without paid keys by searching free public A-share announcement sources first; configure Tavily or SerpAPI only when broader market-news context is desired. When the user wants a shareable visual artifact, generate HTML first and then use `scripts/screenshot_report.py` to create a long PNG screenshot.
 
 ## Environment
 
@@ -24,9 +24,9 @@ If dependency installation is unavailable, still use this skill for report forma
 1. Build one or more `StockData` records from provider data.
 2. Run `normalize_quote_data(stocks)` before detection.
 3. Run `detect(stocks)` or `detect_anomalies(stocks)` to produce `RiskSignal` entries.
-4. For detailed single-stock A-share or US reports, compute MACD/RSI/BOLL/KDJ with `analyze_technical_indicators(history)` and set `ReportData.technical`. A-share history should try EastMoney first, then the Sina/Tencent fallback history provider when bars are missing or insufficient.
-5. Optionally search company context only when an API key is configured. For A-shares, use the built-in hard-information query plan first: announcements, filings, earnings previews, risk notices, major events, and shareholder changes. Rank exchange/CnInfo/Eastmoney/company sources ahead of generic market news. If lookup fails or returns no results, skip the section and continue.
-6. Create `ReportData` with title, summary, stocks, signals, data source, timestamp, optional `news`, and optional `technical`.
+4. For detailed single-stock A-share or US reports, compute MACD/RSI/BOLL/KDJ with `analyze_technical_indicators(history)` and set `ReportData.technical`. A-share history should try EastMoney first, optional AkShare next, then the Sina/Tencent fallback history provider when bars are missing or insufficient.
+5. Optionally search company context with `--news`. For A-shares, use the free public hard-information sources first: announcements, filings, earnings previews, risk notices, major events, and shareholder changes. Tavily/SerpAPI are optional fallback providers when configured. If lookup fails or returns no results, skip the section and continue.
+6. Create `ReportData` with title, summary, stocks, signals, data source, timestamp, optional `news`, optional `technical`, and optional `strategy_profile`.
 7. Render Markdown with `render_standard_report(data)` for multi-stock reports, or `render_detailed_report(data)` for single-stock deep dives.
 8. Render browser-ready HTML with `render_html_report(data, mode="standard"|"detailed")` when the user wants a polished report page.
 9. Prefer `scripts/screenshot_report.py` after HTML generation when the user wants an image, README screenshot, social preview, or shareable long report.
@@ -37,6 +37,22 @@ For a one-command live report:
 ```bash
 python scripts/report.py 002346 --mode detailed --html --out reports/002346.html
 ```
+
+For a strategy-specific detailed report:
+
+```bash
+python scripts/report.py 002346 --mode detailed --strategy risk_avoid --news --html --out reports/002346-risk.html --markdown-out outputs/002346-risk.md
+python scripts/report.py 002346 --mode detailed --strategy swing --html --out reports/002346-swing.html --markdown-out outputs/002346-swing.md
+```
+
+Strategy profiles affect only the operation-suggestion card:
+
+| Profile | Use |
+|:---|:---|
+| `neutral` | Default neutral report posture |
+| `mainline` | A-share mainline first-wave middle segment fit |
+| `risk_avoid` | Hard-risk screening before participation |
+| `swing` | General swing-trend tracking |
 
 To capture a long PNG screenshot from an HTML report:
 
