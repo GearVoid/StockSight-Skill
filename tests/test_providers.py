@@ -184,6 +184,12 @@ class TencentDataSourceTests(unittest.TestCase):
         self.assertEqual(data, {})
         self.assertEqual(failed, [])
 
+    def test_fetch_skips_us_tickers(self):
+        ds = TencentDataSource()
+        data, failed = ds.fetch(["TSLA"])
+        self.assertEqual(data, {})
+        self.assertEqual(failed, ["TSLA"])
+
     def test_provider_name_is_chinese(self):
         self.assertEqual(TencentDataSource().name(), "腾讯财经")
 
@@ -257,6 +263,7 @@ class SinaParserTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 from providers.eastmoney import EastMoneyDataSource
+from providers.akshare_provider import AkShareDataSource
 from providers.ashare_history import AShareHistoryDataSource, _market_symbol
 from core.market import to_eastmoney_secid
 
@@ -277,7 +284,7 @@ EASTMONEY_STOCK_RESPONSE = {
         "f127": "软件开发",
         "f129": "人工智能,区块链,金融科技",
         "f167": 320,
-        "f168": 201,
+        "f170": 201,
     },
 }
 
@@ -370,6 +377,97 @@ class EastMoneyParserTests(unittest.TestCase):
         self.assertEqual(len(history.bars), 2)
         self.assertEqual(history.bars[0].date, "2026-01-01")
         self.assertAlmostEqual(history.bars[-1].close, 10.80)
+
+
+# ---------------------------------------------------------------------------
+# AkShare optional provider tests
+# ---------------------------------------------------------------------------
+
+class _FakeFrame:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def to_dict(self, orient):
+        self.assert_orient = orient
+        return self._rows
+
+
+class _FakeAkShare:
+    @staticmethod
+    def stock_zh_a_spot_em():
+        return _FakeFrame([
+            {
+                "代码": "600570",
+                "名称": "恒生电子",
+                "最新价": 35.50,
+                "昨收": 34.80,
+                "今开": 35.00,
+                "最高": 35.80,
+                "最低": 33.90,
+                "成交量": 12345600,
+                "成交额": 438000000,
+                "量比": 1.8,
+                "涨跌幅": 2.01,
+                "换手率": 3.2,
+                "总市值": 1000000000,
+                "流通市值": 800000000,
+                "市盈率-动态": 28.5,
+                "市净率": 4.2,
+            }
+        ])
+
+    @staticmethod
+    def stock_zh_a_hist(symbol, period, start_date, end_date, adjust):
+        return _FakeFrame([
+            {"日期": "2026-01-01", "开盘": 10.0, "收盘": 10.5, "最高": 10.8, "最低": 9.9, "成交量": 1000},
+            {"日期": "2026-01-02", "开盘": 10.5, "收盘": 10.8, "最高": 11.0, "最低": 10.4, "成交量": 1200},
+        ])
+
+
+class AkShareProviderTests(unittest.TestCase):
+    def test_fetch_parses_a_share_spot_frame(self):
+        ds = AkShareDataSource(ak_module=_FakeAkShare)
+
+        data, failed = ds.fetch(["600570", "AAPL"])
+
+        self.assertIn("600570", data)
+        self.assertIn("AAPL", failed)
+        stock = data["600570"]
+        self.assertEqual(stock.name, "恒生电子")
+        self.assertAlmostEqual(stock.current_price, 35.50)
+        self.assertAlmostEqual(stock.change_percent, 2.01)
+        self.assertEqual(stock.market, "sh")
+        self.assertEqual(stock.raw["provider"], "akshare")
+        self.assertEqual(stock.raw["source_api"], "stock_zh_a_spot_em")
+
+    def test_fetch_history_parses_daily_bars(self):
+        ds = AkShareDataSource(ak_module=_FakeAkShare)
+
+        history = ds.fetch_history("600570", days=2)
+
+        self.assertEqual(history.code, "600570")
+        self.assertEqual(len(history.bars), 2)
+        self.assertEqual(history.bars[0].date, "2026-01-01")
+        self.assertAlmostEqual(history.bars[-1].close, 10.80)
+
+    def test_fetch_raises_data_source_error_when_package_missing(self):
+        ds = AkShareDataSource()
+
+        try:
+            import akshare  # noqa: F401
+        except ImportError:
+            with self.assertRaises(DataSourceError):
+                ds.fetch(["600570"])
+
+    def test_fetch_history_returns_empty_when_package_missing(self):
+        ds = AkShareDataSource()
+
+        try:
+            import akshare  # noqa: F401
+        except ImportError:
+            history = ds.fetch_history("600570", days=2)
+            self.assertEqual(history.code, "600570")
+            self.assertEqual(history.bars, [])
 
 
 # ---------------------------------------------------------------------------

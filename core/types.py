@@ -287,3 +287,6 @@ class ReportData:
 
     source_notes: List[str] = field(default_factory=list)
     """数据来源链说明，如实时行情源、历史行情源和 fallback 状态。"""
+
+    strategy_profile: str = "neutral"
+    """策略视角标记；默认 neutral 表示通用中立报告口径。"""

@@ -10,7 +10,8 @@ StockSight fetches quotes, cleans suspicious fields, detects unusual volume, tur
 
 Recommended after installation:
 
-- Configure Tavily or SerpAPI when possible so A-share reports can include announcements, filings, earnings previews, and risk notices.
+- `--news` searches free public announcement sources first, currently CNINFO and EastMoney notices. Configure Tavily or SerpAPI when possible to add broader market news, filings context, earnings previews, and risk notices.
+- Ask the user which operation-suggestion strategy view they prefer by default: `neutral`, `mainline`, `risk_avoid`, or `swing`. If they do not choose one, use `neutral`.
 - Generate HTML first, then use `scripts/screenshot_report.py` when the user wants a shareable long PNG report.
 
 Generate a live detailed A-share report:
@@ -19,6 +20,23 @@ Generate a live detailed A-share report:
 python scripts/report.py 002346 --mode detailed --html --out reports/002346.html --markdown-out outputs/002346.md
 python scripts/screenshot_report.py reports/002346.html --out reports/002346-full.png
 ```
+
+Use an optional strategy profile:
+
+```bash
+python scripts/report.py 002346 --mode detailed --strategy mainline --html --out reports/002346-mainline.html --markdown-out outputs/002346-mainline.md
+python scripts/report.py 002346 --mode detailed --strategy risk_avoid --html --out reports/002346-risk.html --markdown-out outputs/002346-risk.md
+python scripts/report.py 002346 --mode detailed --strategy swing --html --out reports/002346-swing.html --markdown-out outputs/002346-swing.md
+```
+
+`--strategy` changes only the operation-suggestion perspective and does not turn StockSight into a buy/sell recommendation engine. Omit the flag, or use `--strategy neutral`, to keep the default neutral report posture.
+
+| Strategy | Perspective | Use when |
+|:---|:---|:---|
+| `neutral` | Default neutral report posture | The user has not chosen a personal strategy view |
+| `mainline` | A-share mainline first-wave middle segment | Checking whether the current stock fits the mainline trend setup |
+| `risk_avoid` | Risk-screening / risk-avoidance view | Screening ST, delisting, regulatory, earnings, reduction, pledge, or breakdown risks first |
+| `swing` | Swing-trend view | Tracking breakout, pullback, trend-hold, cooldown, and exit conditions |
 
 Generate a US equity report:
 
@@ -34,13 +52,15 @@ Provider selection:
 | Yahoo | US equities | `--provider yahoo` |
 | Sina | Fallback for A/HK/US | `--provider sina` |
 | EastMoney | A-share plus sector benchmark | `--provider eastmoney` |
+| AkShare | Optional A-share quote and daily K-line fallback | `--provider akshare` |
 | Auto | Chains providers | `--provider auto` |
 
 If a provider call fails, `--provider auto` tries the next available provider.
+AkShare is optional and not required for the default install. To use `--provider akshare`, install it separately with `pip install akshare`; if it is missing, `--provider auto` will continue to the other providers.
 
 For detailed A-share reports, technical history uses EastMoney first and then falls back to public Sina/Tencent daily K-lines when EastMoney does not return enough bars.
 Reports should expose the data-source chain near the top so another agent can see the live quote provider, historical provider, fallback status, and historical K-line bar count.
-When `--news` is enabled, StockSight searches A-share hard information first: announcements, filings, earnings previews, risk notices, major events, and shareholder changes. Generic market news is only fallback context.
+When `--news` is enabled, StockSight searches A-share hard information first through free public announcement sources: announcements, filings, earnings previews, risk notices, major events, and shareholder changes. Tavily or SerpAPI results are optional fallback context when configured. Generic market news is only fallback context.
 
 ## Snapshot Workflow
 

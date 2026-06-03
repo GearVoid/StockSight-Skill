@@ -31,6 +31,7 @@ class ReportSnapshotTests(unittest.TestCase):
         data = sample_report(
             technical=sample_technical(),
             source_notes=["实时行情：unit", "历史行情：unit-history（80条）"],
+            strategy_profile="mainline",
         )
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -54,6 +55,7 @@ class ReportSnapshotTests(unittest.TestCase):
         self.assertEqual(restored.technical.rsi.latest, 72.5)
         self.assertEqual(restored.technical.signals[0].indicator, "RSI")
         self.assertEqual(restored.source_notes, data.source_notes)
+        self.assertEqual(restored.strategy_profile, "mainline")
         self.assertEqual(restored.snapshot_source, str(snapshot))
         self.assertEqual(meta["mode"], "detailed")
         self.assertEqual(meta["provider"], "unit")
@@ -104,6 +106,32 @@ class ReportSnapshotTests(unittest.TestCase):
 
         self.assertIsNone(restored.technical)
         self.assertEqual(restored.source_notes, [])
+        self.assertEqual(restored.strategy_profile, "neutral")
+
+    def test_cli_strategy_overrides_snapshot_strategy_for_rendering(self):
+        data = sample_report(strategy_profile="neutral")
+        data.stocks[0].raw = {"industry": "机器人", "concepts": ["人工智能"]}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            snapshot = base / "sample.json"
+            markdown = base / "sample.md"
+            report._save_snapshot(snapshot, data, mode="detailed", provider="unit", failed=[], quality_notes=[])
+
+            exit_code = report.main(
+                [
+                    "--from-snapshot",
+                    str(snapshot),
+                    "--strategy",
+                    "mainline",
+                    "--markdown-out",
+                    str(markdown),
+                ]
+            )
+
+            self.assertEqual(exit_code, 0)
+            markdown_text = markdown.read_text(encoding="utf-8")
+            self.assertIn("策略视角：A股主线第一波中段趋势策略", markdown_text)
 
 
 if __name__ == "__main__":

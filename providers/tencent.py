@@ -229,13 +229,20 @@ class TencentDataSource(DataSource):
         market_codes = []
         code_map: Dict[str, str] = {}  # 市场前缀+code → 原始code
         code_markets: Dict[str, str] = {}  # code → 该请求中用到的前缀
+        failed: List[str] = []
 
         for code in codes:
             market = _detect_market(code)
+            if market not in _PARSER_MAP:
+                failed.append(code)
+                continue
             key = f"{market}{code}"
             market_codes.append(key)
             code_map[key] = code
             code_markets[code] = market
+
+        if not market_codes:
+            return {}, failed
 
         url = TENCENT_API_URL + ",".join(market_codes)
 
@@ -262,7 +269,6 @@ class TencentDataSource(DataSource):
 
         # 逐行解析响应
         result: Dict[str, StockData] = {}
-        failed: List[str] = []
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         for line in raw_text.strip().split("\n"):

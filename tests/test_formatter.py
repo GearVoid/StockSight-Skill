@@ -1,7 +1,7 @@
 ﻿# -*- coding: utf-8 -*-
 import unittest
 
-from core import BOLLResult, KDJResult, MACDResult, NewsItem, RSIResult, RiskSignal, TechnicalAnalysis, TechnicalSignal
+from core import BOLLResult, KDJResult, MACDResult, NewsItem, RSIResult, RiskSignal, TechnicalAnalysis, TechnicalSignal, TrendSummary
 from formatter import (
     render_detailed_report,
     render_html_report,
@@ -54,13 +54,14 @@ class FormatterTests(unittest.TestCase):
         self.assertIn("数据可信度", html)
         self.assertIn("行情时间", html)
         self.assertIn("Snapshot", html)
-        self.assertIn("StockSight v0.3.3", html)
+        self.assertIn("StockSight v0.4.0", html)
         self.assertIn("异动强度", html)
         self.assertIn("下行风险", html)
         self.assertIn("异动强度拆解", html)
         self.assertIn("价格波动", html)
         self.assertIn("突破确认", html)
         self.assertIn("确认条件", html)
+        self.assertNotIn("A股主线第一波中段趋势策略", html)
 
     def test_news_context_splits_hard_info_and_market_news(self):
         data = sample_report(news=[
@@ -87,6 +88,69 @@ class FormatterTests(unittest.TestCase):
         self.assertIn("市场资讯与舆情", markdown)
         self.assertIn("公司公告与硬信息", html)
         self.assertIn("市场资讯与舆情", html)
+
+    def test_mainline_strategy_profile_renders_in_markdown_and_html(self):
+        technical = TechnicalAnalysis(
+            rsi=RSIResult(values=[62.0], dates=["2026-05-18"]),
+            boll=BOLLResult(upper=[12.0], middle=[10.0], lower=[8.0]),
+            kdj=KDJResult(k=[58.0], d=[52.0], j=[64.0]),
+            trend=TrendSummary(
+                macd_alignment="bullish",
+                macd_alignment_desc="MACD 多头排列",
+                macd_histogram_trend="expanding",
+                rsi_trend="uptrend",
+                rsi_trend_desc="RSI 强势区上行",
+            ),
+        )
+        data = sample_report(
+            strategy_profile="mainline",
+            technical=technical,
+        )
+        data.stocks[0].raw = {"industry": "机器人", "concepts": ["人工智能", "高端制造"]}
+
+        markdown = render_detailed_report(data)
+        html = render_html_report(data)
+
+        self.assertIn("策略视角：A股主线第一波中段趋势策略", markdown)
+        self.assertIn("结论类型：策略适配度判断，不构成买卖建议", markdown)
+        self.assertIn("时间止损", markdown)
+        self.assertIn("仓位提示", markdown)
+        self.assertIn("A股主线第一波中段趋势策略", html)
+        self.assertIn("策略适配度判断", html)
+
+    def test_risk_avoid_strategy_profile_renders_in_markdown_and_html(self):
+        data = sample_report(strategy_profile="risk_avoid")
+
+        markdown = render_detailed_report(data)
+        html = render_html_report(data)
+
+        self.assertIn("策略视角：风险排雷视角", markdown)
+        self.assertIn("结论类型：策略适配度判断，不构成买卖建议", markdown)
+        self.assertIn("风险排雷视角", html)
+        self.assertIn("排雷", html)
+
+    def test_swing_strategy_profile_renders_in_markdown_and_html(self):
+        data = sample_report(strategy_profile="swing")
+
+        markdown = render_detailed_report(data)
+        html = render_html_report(data)
+
+        self.assertIn("策略视角：波段趋势视角", markdown)
+        self.assertIn("结论类型：策略适配度判断，不构成买卖建议", markdown)
+        self.assertIn("波段趋势视角", html)
+        self.assertIn("波段", html)
+
+    def test_neutral_strategy_profile_does_not_render_mainline_copy(self):
+        markdown = render_detailed_report(sample_report())
+        html = render_html_report(sample_report())
+
+        self.assertNotIn("A股主线第一波中段趋势策略", markdown)
+        self.assertNotIn("风险排雷视角", markdown)
+        self.assertNotIn("波段趋势视角", markdown)
+        self.assertNotIn("策略适配度判断", markdown)
+        self.assertNotIn("A股主线第一波中段趋势策略", html)
+        self.assertNotIn("风险排雷视角", html)
+        self.assertNotIn("波段趋势视角", html)
 
     def test_html_report_without_signals_does_not_create_fake_pie(self):
         html = render_html_report(sample_report(signal=None, news=[]))

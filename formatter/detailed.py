@@ -433,9 +433,13 @@ def render_detailed_report(data: ReportData) -> str:
     # 14. 操作建议
     parts.append(f"## {EmojiMap.CONCLUSION} 操作建议")
     parts.append("")
-    decision = evaluate_strategy_action(stock, signals, data.technical, data.news)
+    decision = evaluate_strategy_action(stock, signals, data.technical, data.news, profile=data.strategy_profile)
     mk = stock.market
     icon = EmojiMap.OP_SELL if decision.tone == "danger" else EmojiMap.OP_HOLD if decision.tone in ("warning", "watch") else EmojiMap.OP_BUY
+    if decision.profile_label:
+        parts.append(f"- 策略视角：{decision.profile_label}")
+        parts.append("- 结论类型：策略适配度判断，不构成买卖建议")
+        parts.append("")
     parts.append(f"{icon} **{decision.action}**")
     parts.append("")
     parts.append(decision.summary)
@@ -447,6 +451,10 @@ def render_detailed_report(data: ReportData) -> str:
         parts.append(f"- 触发依据：{'；'.join(decision.basis)}")
     parts.append(f"- 确认条件：{decision.confirmation}")
     parts.append(f"- 失效条件：{decision.invalidation}")
+    if decision.time_stop:
+        parts.append(f"- 时间止损：{decision.time_stop}")
+    if decision.position_note:
+        parts.append(f"- 仓位提示：{decision.position_note}")
     parts.append(f"- 风险备注：{decision.risk_note}")
     parts.append("")
     parts.append("> 以上参考数值基于技术指标计算，不构成投资建议。")

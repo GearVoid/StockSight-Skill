@@ -117,12 +117,12 @@ def _risk_gauge_html(top_level: int, signals: Sequence[RiskSignal]) -> str:
 # 操作建议决策卡
 # =============================================================================
 
-def _decision_card_html(stock: StockData, signals: Sequence[RiskSignal], technical=None, news=None) -> str:
+def _decision_card_html(stock: StockData, signals: Sequence[RiskSignal], technical=None, news=None, profile: str = "neutral") -> str:
     price = stock.current_price
     mk = stock.market
     stop_loss = round(price * 0.95, 2)
     target = round(price * 1.056, 2)
-    decision = evaluate_strategy_action(stock, signals, technical, news)
+    decision = evaluate_strategy_action(stock, signals, technical, news, profile=profile)
     action_class = {
         "danger": "danger",
         "warning": "caution",
@@ -130,6 +130,19 @@ def _decision_card_html(stock: StockData, signals: Sequence[RiskSignal], technic
         "healthy": "healthy",
     }.get(decision.tone, "watch")
     basis = "".join(f"<li>{_html(item)}</li>" for item in decision.basis)
+    profile_note = ""
+    if decision.profile_label:
+        profile_note = (
+            '<p class="muted">'
+            f'<strong>策略视角：</strong>{_html(decision.profile_label)}<br>'
+            "结论类型：策略适配度判断，不构成买卖建议。"
+            "</p>"
+        )
+    extra_rows = ""
+    if decision.time_stop:
+        extra_rows += f'<div><dt>时间止损</dt><dd>{_html(decision.time_stop)}</dd></div>'
+    if decision.position_note:
+        extra_rows += f'<div><dt>仓位提示</dt><dd>{_html(decision.position_note)}</dd></div>'
 
     return (
         '<section class="panel" id="decision">'
@@ -156,12 +169,14 @@ def _decision_card_html(stock: StockData, signals: Sequence[RiskSignal], technic
         "</div>"
         "</div>"
         '<div class="dc-strategy-details">'
-        f'<p>{_html(decision.summary)}</p>'
+        + profile_note
+        + f'<p>{_html(decision.summary)}</p>'
         + (f'<ul>{basis}</ul>' if basis else '')
         + '<dl>'
         f'<div><dt>确认条件</dt><dd>{_html(decision.confirmation)}</dd></div>'
         f'<div><dt>失效条件</dt><dd>{_html(decision.invalidation)}</dd></div>'
-        f'<div><dt>风险备注</dt><dd>{_html(decision.risk_note)}</dd></div>'
+        + extra_rows
+        + f'<div><dt>风险备注</dt><dd>{_html(decision.risk_note)}</dd></div>'
         '</dl>'
         '</div>'
         '<p class="muted dc-disclaimer">以上参考数值基于技术指标计算，不构成投资建议。</p>'

@@ -163,6 +163,147 @@ class StrategyTests(unittest.TestCase):
         self.assertEqual(decision.action, "低位修复")
         self.assertIn("修复", decision.summary)
 
+    def test_mainline_hard_news_is_not_suitable(self):
+        stock = sample_stock(code="002346", name="某中股份", change_percent=3.2, volume_ratio=2.2)
+        decision = evaluate_strategy_action(
+            stock,
+            [],
+            technical_context(macd_alignment="bullish", rsi=58.0),
+            [NewsItem(title="某中股份收到监管问询函", source="公告", published_at="2026-05-18")],
+            profile="mainline",
+        )
+
+        self.assertEqual(decision.action, "不适合参与")
+        self.assertEqual(decision.profile, "mainline")
+        self.assertIn("A股主线第一波中段趋势策略", decision.profile_label)
+
+    def test_mainline_volume_breakout_can_small_trial(self):
+        stock = sample_stock(
+            change_percent=3.4,
+            volume_ratio=2.1,
+            turnover_rate=6.0,
+            raw={"industry": "机器人", "concepts": ["人工智能", "高端制造"]},
+        )
+        decision = evaluate_strategy_action(
+            stock,
+            [sample_signal(risk_type="量比偏离", level=2, description="量比放大")],
+            technical_context(macd_alignment="bullish", rsi=62.0, boll_latest=(12.0, 10.0, 8.0)),
+            profile="mainline",
+        )
+
+        self.assertEqual(decision.action, "可小仓试错")
+        self.assertIn("主线适配度评分", "；".join(decision.basis))
+        self.assertIn("首笔试仓", decision.position_note)
+
+    def test_mainline_overheated_signal_reduces_before_chasing(self):
+        stock = sample_stock(
+            change_percent=4.0,
+            volume_ratio=2.2,
+            turnover_rate=12.0,
+            raw={"industry": "机器人"},
+        )
+        decision = evaluate_strategy_action(
+            stock,
+            [sample_signal(risk_type="RSI技术信号", level=2, description="RSI 超买")],
+            technical_context(macd_alignment="bullish", rsi=78.0),
+            profile="mainline",
+        )
+
+        self.assertEqual(decision.action, "触发减仓")
+        self.assertEqual(decision.tone, "warning")
+
+    def test_mainline_downside_break_triggers_exit(self):
+        stock = sample_stock(
+            change_percent=-4.2,
+            volume_ratio=2.0,
+            turnover_rate=8.0,
+            raw={"industry": "机器人"},
+        )
+        decision = evaluate_strategy_action(
+            stock,
+            [sample_signal(risk_type="价格异动", level=2, description="放量下跌并跌回平台")],
+            technical_context(macd_alignment="bearish", rsi=42.0),
+            profile="mainline",
+        )
+
+        self.assertEqual(decision.action, "触发退出")
+        self.assertEqual(decision.tone, "danger")
+
+    def test_risk_avoid_st_name_fails_screening(self):
+        stock = sample_stock(name="ST得润", change_percent=2.0, volume_ratio=1.4)
+        decision = evaluate_strategy_action(
+            stock,
+            [],
+            technical_context(macd_alignment="bullish", rsi=55.0),
+            profile="risk_avoid",
+        )
+
+        self.assertEqual(decision.action, "排雷未通过")
+        self.assertEqual(decision.profile, "risk_avoid")
+        self.assertIn("风险排雷视角", decision.profile_label)
+
+    def test_risk_avoid_hard_news_is_not_suitable(self):
+        stock = sample_stock(code="002346", name="得润电子", change_percent=3.0, volume_ratio=1.8)
+        decision = evaluate_strategy_action(
+            stock,
+            [],
+            technical_context(macd_alignment="bullish", rsi=58.0),
+            [NewsItem(title="得润电子收到监管问询函", source="公告", published_at="2026-05-18")],
+            profile="risk_avoid",
+        )
+
+        self.assertEqual(decision.action, "不适合参与")
+        self.assertEqual(decision.tone, "danger")
+
+    def test_risk_avoid_clean_setup_passes_screening(self):
+        stock = sample_stock(change_percent=1.0, volume_ratio=1.1, turnover_rate=3.0)
+        decision = evaluate_strategy_action(
+            stock,
+            [sample_signal(risk_type="RSI技术信号", level=1, description="温和趋势")],
+            technical_context(macd_alignment="bullish", rsi=56.0, boll_latest=(12.0, 10.0, 8.0), kdj_j=54.0),
+            profile="risk_avoid",
+        )
+
+        self.assertEqual(decision.action, "排雷通过")
+        self.assertEqual(decision.tone, "healthy")
+
+    def test_swing_volume_breakout_becomes_candidate(self):
+        stock = sample_stock(change_percent=3.4, volume_ratio=2.1, turnover_rate=6.0)
+        decision = evaluate_strategy_action(
+            stock,
+            [sample_signal(risk_type="量比偏离", level=2, description="量比放大")],
+            technical_context(macd_alignment="bullish", rsi=62.0, boll_latest=(12.0, 10.0, 8.0), kdj_j=64.0),
+            profile="swing",
+        )
+
+        self.assertEqual(decision.action, "波段候选")
+        self.assertEqual(decision.profile, "swing")
+        self.assertIn("波段趋势视角", decision.profile_label)
+
+    def test_swing_overheated_signal_cools_down(self):
+        stock = sample_stock(change_percent=4.0, volume_ratio=2.2, turnover_rate=12.0)
+        decision = evaluate_strategy_action(
+            stock,
+            [sample_signal(risk_type="RSI技术信号", level=2, description="RSI 超买")],
+            technical_context(macd_alignment="bullish", rsi=78.0, kdj_j=104.0),
+            profile="swing",
+        )
+
+        self.assertEqual(decision.action, "高位降温")
+        self.assertEqual(decision.tone, "warning")
+
+    def test_swing_downside_break_triggers_exit(self):
+        stock = sample_stock(change_percent=-4.2, volume_ratio=2.0, turnover_rate=8.0)
+        decision = evaluate_strategy_action(
+            stock,
+            [sample_signal(risk_type="价格异动", level=2, description="放量下跌并破位")],
+            technical_context(macd_alignment="bearish", rsi=42.0, boll_latest=(12.0, 10.0, 8.0)),
+            profile="swing",
+        )
+
+        self.assertEqual(decision.action, "触发退出")
+        self.assertEqual(decision.tone, "danger")
+
 
 if __name__ == "__main__":
     unittest.main()

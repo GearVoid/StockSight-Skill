@@ -36,14 +36,14 @@ HEADERS = {
 
 # stock/get 字段编码
 FIELDS_STOCK = (
-    "f43,f44,f45,f46,f47,f48,f50,f57,f58,f60,f127,f128,f129,f167,f168"
+    "f43,f44,f45,f46,f47,f48,f50,f57,f58,f60,f127,f128,f129,f167,f170"
 )
 
 # clist/get 字段：板块列表
 FIELDS_SECTOR = "f12,f14,f2,f3,f4"
 
 # clist/get 字段：板块成分
-FIELDS_CONSTITUENT = "f12,f14,f50,f167,f168"
+FIELDS_CONSTITUENT = "f12,f14,f3,f8"
 
 
 def _to_secid(code: str) -> Optional[str]:
@@ -159,7 +159,7 @@ class EastMoneyDataSource(DataSource):
         amount = (raw_data.get("f48") or 0) / 10000  # 元→万元
         volume_ratio = (raw_data.get("f50") or 0) * 0.01
         prev_close = (raw_data.get("f60") or 0) * price_scale
-        change_percent = (raw_data.get("f168") or 0) * 0.01
+        change_percent = (raw_data.get("f170") or 0) * 0.01
         turnover_rate = (raw_data.get("f167") or 0) * 0.01
 
         # 行业板块信息
@@ -401,23 +401,18 @@ class EastMoneyDataSource(DataSource):
                 return None
 
             # 计算均值
-            vrs = [
-                (c.get("f50") or 0) * 0.01
-                for c in constituents
-                if (c.get("f50") or 0) > 0
-            ]
             trs = [
-                (c.get("f167") or 0) * 0.01
+                c.get("f8") or 0
                 for c in constituents
-                if (c.get("f167") or 0) > 0
+                if (c.get("f8") or 0) > 0
             ]
             changes = [
-                (c.get("f168") or 0) * 0.01
+                c.get("f3") or 0
                 for c in constituents
-                if c.get("f168") is not None
+                if c.get("f3") is not None
             ]
 
-            avg_vr = sum(vrs) / len(vrs) if vrs else 0.0
+            avg_vr = 0.0
             avg_tr = sum(trs) / len(trs) if trs else 0.0
             avg_change = sum(changes) / len(changes) if changes else 0.0
 
