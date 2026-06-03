@@ -41,7 +41,35 @@ python scripts/report.py 002346 --mode detailed --html --out reports/002346.html
 To capture a long PNG screenshot from an HTML report:
 
 ```bash
-python scripts/screenshot_report.py reports/002346.html --out docs/images/002346-full.png
+python scripts/screenshot_report.py reports/002346.html --out docs/images/002346-full.png --engine cdp --timeout 60
+```
+
+Cloud Linux agents should not call snap Chromium's raw `--screenshot` command
+for StockSight reports. On Ubuntu 24.04, snap Chromium commonly captures only a
+tall viewport instead of the full document, producing a mostly blank long PNG
+with fixed navigation/watermark elements floating in the middle or bottom. Use
+`scripts/screenshot_report.py` instead; it disables report animations and uses
+Playwright or Chrome DevTools Protocol for true full-page capture.
+
+Recommended Hermes/Linux setup:
+
+```bash
+source ~/.hermes/hermes-agent/venv/bin/activate
+python -m pip install -U pip
+python -m pip install playwright
+python -m playwright install --with-deps chromium
+python scripts/screenshot_report.py reports/002346.html --out reports/002346-full.png --engine playwright --timeout 60
+```
+
+If Playwright installation is interrupted or unavailable, install non-snap
+Chrome and force the dependency-free CDP path:
+
+```bash
+wget -q -O /tmp/google-chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+sudo apt-get update
+sudo apt-get install -y /tmp/google-chrome.deb
+export STOCKSIGHT_BROWSER=/usr/bin/google-chrome
+python scripts/screenshot_report.py reports/002346.html --out reports/002346-full.png --engine cdp --timeout 60
 ```
 
 For reproducible cross-agent output, save a snapshot once and render from it later:

@@ -73,10 +73,33 @@ python scripts/render_examples.py
 Capture a long PNG screenshot from a generated HTML report:
 
 ```bash
-python scripts/screenshot_report.py reports/002346.html --out docs/images/002346-full.png
+python scripts/screenshot_report.py reports/002346.html --out docs/images/002346-full.png --engine cdp --timeout 60
 ```
 
 If Chrome / Edge is installed in a custom location, set `STOCKSIGHT_BROWSER` to the executable path.
+
+Cloud Linux screenshot note:
+
+- Do not use snap Chromium's raw `--screenshot` command for long StockSight reports. On Ubuntu 24.04 it often captures only a tall viewport, leaving a mostly blank PNG with fixed side navigation and watermark elements in the middle/bottom.
+- Prefer Playwright when it is installed:
+
+```bash
+source ~/.hermes/hermes-agent/venv/bin/activate
+python -m pip install -U pip
+python -m pip install playwright
+python -m playwright install --with-deps chromium
+python scripts/screenshot_report.py reports/002346.html --out reports/002346-full.png --engine playwright --timeout 60
+```
+
+- If Playwright installation is interrupted, install non-snap Chrome and force the dependency-free CDP path:
+
+```bash
+wget -q -O /tmp/google-chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+sudo apt-get update
+sudo apt-get install -y /tmp/google-chrome.deb
+export STOCKSIGHT_BROWSER=/usr/bin/google-chrome
+python scripts/screenshot_report.py reports/002346.html --out reports/002346-full.png --engine cdp --timeout 60
+```
 
 When rendering from `--from-snapshot`, do not fetch live quotes, re-run news search, re-detect signals, or recompute MACD/RSI/BOLL/KDJ. The snapshot is the source of truth.
 
