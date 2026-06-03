@@ -10,7 +10,7 @@ StockSight follows [Semantic Versioning](https://semver.org/):
 - **MINOR** `0.x.0`: backward-compatible features such as indicators, providers, or report sections.
 - **PATCH** `0.0.x`: bug fixes, tests, and documentation updates.
 
-Current version: **0.3.2**
+Current version: **0.3.3**
 
 ## Release Checklist
 
@@ -133,6 +133,7 @@ python scripts/report.py --from-snapshot examples/a-share-detailed.json --html -
 
 | Version | Date | Theme |
 |:---|:---|:---|
+| v0.3.3 | 2026-06-03 | Cloud screenshot fallback guidance |
 | v0.3.2 | 2026-05-28 | Strategy actions, screenshot stability, stale hard-risk news filtering |
 | v0.3.1 | 2026-05-22 | README full-report screenshot refresh |
 | v0.3.0 | 2026-05-21 | Source-chain reproducibility, hard information, dual risk scoring |

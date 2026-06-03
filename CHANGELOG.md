@@ -1,5 +1,15 @@
 ﻿# Changelog
 
+## v0.3.3 - 2026-06-03
+
+Cloud screenshot fallback guidance release. Agent installations now document the reliable Playwright/CDP paths for long report screenshots on Ubuntu cloud hosts.
+
+### Changed
+- Documented `scripts/screenshot_report.py --engine cdp --timeout 60` as the recommended long screenshot fallback for cloud agents.
+- Added Hermes/Linux setup guidance for Playwright screenshots and non-snap Chrome CDP screenshots.
+- Warned agents away from snap Chromium's raw `--screenshot` path, which can capture a tall viewport instead of the full StockSight report.
+- Bumped the README badge and HTML footer version to `v0.3.3`.
+
 ## v0.3.2 - 2026-05-28
 
 Strategy-action release. Reports now distinguish risk detection from strategy posture, so medium technical moves no longer collapse into generic watch/hold copy.

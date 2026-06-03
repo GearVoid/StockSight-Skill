@@ -1,6 +1,6 @@
 ﻿# StockSight-Skill
 
-[![Version](https://img.shields.io/badge/version-v0.3.2-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.3.2)
+[![Version](https://img.shields.io/badge/version-v0.3.3-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.3.3)
 [![Python](https://img.shields.io/badge/python-3.9%2B-2563eb)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
 [![Skill Ready](https://img.shields.io/badge/Codex%20Skill-ready-f97316)](SKILL.md)
@@ -267,7 +267,7 @@ StockSight-Skill/
 
 # StockSight-Skill
 
-[![Version](https://img.shields.io/badge/version-v0.3.2-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.3.2)
+[![Version](https://img.shields.io/badge/version-v0.3.3-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.3.3)
 [![Python](https://img.shields.io/badge/python-3.9%2B-2563eb)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
 [![Skill Ready](https://img.shields.io/badge/Codex%20Skill-ready-f97316)](SKILL.md)
