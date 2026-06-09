@@ -298,6 +298,28 @@ EASTMONEY_HISTORY_RESPONSE = {
     },
 }
 
+EASTMONEY_SECTOR_RESPONSE = {
+    "rc": 0,
+    "data": {
+        "diff": [
+            {
+                "f12": "BK1234",
+                "f14": "机器人",
+                "f2": 1234.5,
+                "f3": 3.21,
+                "f4": 38.2,
+                "f8": 2.5,
+                "f20": 100000000,
+                "f62": 1200000,
+                "f104": 42,
+                "f105": 8,
+                "f128": "强势股份",
+                "f136": 8.6,
+            }
+        ]
+    },
+}
+
 
 class EastMoneyParserTests(unittest.TestCase):
     def test_to_secid_shanghai(self):
@@ -377,6 +399,32 @@ class EastMoneyParserTests(unittest.TestCase):
         self.assertEqual(len(history.bars), 2)
         self.assertEqual(history.bars[0].date, "2026-01-01")
         self.assertAlmostEqual(history.bars[-1].close, 10.80)
+
+    def test_get_sector_list_parses_radar_fields(self):
+        calls = []
+
+        class FakeSession:
+            def get(self, url, params, headers, timeout):
+                calls.append(params)
+
+                class FakeResp:
+                    @staticmethod
+                    def json():
+                        return EASTMONEY_SECTOR_RESPONSE
+                return FakeResp()
+
+        ds = EastMoneyDataSource()
+        ds._session = FakeSession()
+
+        sectors = ds.get_sector_list(board_type="concept")
+
+        self.assertEqual(calls[0]["fs"], "m:90+t:3+f:!50")
+        self.assertEqual(sectors[0]["code"], "BK1234")
+        self.assertEqual(sectors[0]["name"], "机器人")
+        self.assertEqual(sectors[0]["board_type"], "concept")
+        self.assertAlmostEqual(sectors[0]["change"], 3.21)
+        self.assertEqual(sectors[0]["up_count"], 42)
+        self.assertEqual(sectors[0]["leader"], "强势股份")
 
 
 # ---------------------------------------------------------------------------

@@ -10,6 +10,7 @@ from core import (
     TechnicalAnalysis,
     TrendSummary,
     evaluate_strategy_action,
+    evaluate_strategy_separation,
 )
 
 from tests.fixtures import sample_signal, sample_stock
@@ -303,6 +304,26 @@ class StrategyTests(unittest.TestCase):
 
         self.assertEqual(decision.action, "触发退出")
         self.assertEqual(decision.tone, "danger")
+
+    def test_strategy_separation_keeps_mainline_and_swing_scores_apart(self):
+        stock = sample_stock(
+            change_percent=3.4,
+            volume_ratio=2.1,
+            turnover_rate=6.0,
+            raw={"industry": "机器人", "concepts": ["人工智能", "高端制造"]},
+        )
+        separation = evaluate_strategy_separation(
+            stock,
+            [sample_signal(risk_type="量比偏离", level=2, description="量比放大")],
+            technical_context(macd_alignment="bullish", rsi=62.0, boll_latest=(12.0, 10.0, 8.0), kdj_j=64.0),
+        )
+
+        self.assertEqual(separation.mainline.label, "主线方向评分")
+        self.assertEqual(separation.swing.label, "Swing 买点评分")
+        self.assertEqual(separation.mainline.score, 8.0)
+        self.assertEqual(separation.mainline.max_score, 8.0)
+        self.assertEqual(separation.swing.score, 8.0)
+        self.assertIn("共振", separation.summary)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 ﻿# StockSight-Skill
 
-[![Version](https://img.shields.io/badge/version-v0.4.0-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.4.0)
+[![Version](https://img.shields.io/badge/version-v0.5.0-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.5.0)
 [![Python](https://img.shields.io/badge/python-3.9%2B-2563eb)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
 [![Skill Ready](https://img.shields.io/badge/Codex%20Skill-ready-f97316)](SKILL.md)
@@ -112,6 +112,7 @@ python scripts/report.py 002346 --mode detailed --strategy swing --html --out re
 ```
 
 `--strategy` 只改变“操作建议”的策略视角，默认不启用，普通用户继续得到 `neutral` 中立报告口径。
+使用 `--strategy mainline` 时，详细报告会额外拆出“主线方向评分”和“Swing 买点评分”：主线层决定这个方向能不能做，swing 层决定这只票当下有没有买点或持有结构。
 
 | Strategy | 视角 | 适合场景 |
 |:---|:---|:---|
@@ -119,6 +120,14 @@ python scripts/report.py 002346 --mode detailed --strategy swing --html --out re
 | `mainline` | A 股主线第一波中段趋势策略 | 判断当前个股是否适配主线中段试错 |
 | `risk_avoid` | 风险排雷视角 | 优先筛 ST/退市、监管、减持、业绩、破位等风险 |
 | `swing` | 波段趋势视角 | 看突破、回踩、趋势持有和退出条件 |
+
+扫描 A 股行业/概念主线雷达：
+
+```bash
+python scripts/mainline_radar.py --board all --limit 30 --out outputs/mainline-radar/today.md
+```
+
+主线雷达只输出“自动雷达分”和“10 项主线评分待确认清单”。自动雷达分用于发现方向；完整 10 项主线评分达到 6 分，才进入观察/候选流程。脚本拿不到的数据会标为待确认，不按 0 分处理。
 
 生成美股报告：
 
@@ -286,7 +295,7 @@ StockSight-Skill/
 
 # StockSight-Skill
 
-[![Version](https://img.shields.io/badge/version-v0.4.0-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.4.0)
+[![Version](https://img.shields.io/badge/version-v0.5.0-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.5.0)
 [![Python](https://img.shields.io/badge/python-3.9%2B-2563eb)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
 [![Skill Ready](https://img.shields.io/badge/Codex%20Skill-ready-f97316)](SKILL.md)

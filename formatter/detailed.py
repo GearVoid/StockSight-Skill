@@ -15,9 +15,16 @@
   9. 数据来源标注
 """
 
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
-from core import RiskSignal, StockData, ReportData, evaluate_strategy_action, technical_risk_signals
+from core import (
+    RiskSignal,
+    StockData,
+    ReportData,
+    evaluate_strategy_action,
+    evaluate_strategy_separation,
+    technical_risk_signals,
+)
 from .base import (
     EmojiMap,
     change_emoji,
@@ -93,6 +100,36 @@ def _risk_warnings(signals: List[RiskSignal]) -> str:
         symbol = risk_level_symbol(sig.level)
         lines.append(f"{symbol} {render_badge(sig.risk_type)} {render_signal_bar(sig.level)}")
         lines.append(_signal_detail_text(sig))
+        lines.append("")
+    return "\n".join(lines)
+
+
+def _strategy_separation_markdown(stock: StockData, signals: Sequence[RiskSignal], data: ReportData) -> str:
+    """Render separated mainline direction and swing timing scorecards."""
+    separation = evaluate_strategy_separation(stock, signals, data.technical, data.news)
+    lines = [
+        "### 主线方向 / Swing 买点分离",
+        "",
+        f"- 组合结论：{separation.summary}",
+        f"- 下一步：{separation.next_step}",
+        "",
+        "| 层级 | 作用 | 评分 | 状态 | 当前动作 |",
+        "|:---|:---|:---:|:---:|:---|",
+    ]
+    for card in (separation.mainline, separation.swing):
+        lines.append(
+            f"| {card.label} | {card.role} | {card.score_text} | {card.status} | {card.decision.action} |"
+        )
+    lines.append("")
+    for card in (separation.mainline, separation.swing):
+        lines.append(f"**{card.label}依据：**")
+        if card.hits:
+            for hit in card.hits:
+                lines.append(f"- {hit}")
+        else:
+            lines.append("- 暂无可量化依据，需补充板块、技术或新闻信息。")
+        lines.append(f"- 确认条件：{card.decision.confirmation}")
+        lines.append(f"- 失效条件：{card.decision.invalidation}")
         lines.append("")
     return "\n".join(lines)
 
@@ -457,6 +494,9 @@ def render_detailed_report(data: ReportData) -> str:
         parts.append(f"- 仓位提示：{decision.position_note}")
     parts.append(f"- 风险备注：{decision.risk_note}")
     parts.append("")
+    if data.strategy_profile == "mainline":
+        parts.append(_strategy_separation_markdown(stock, signals, data))
+        parts.append("")
     parts.append("> 以上参考数值基于技术指标计算，不构成投资建议。")
     parts.append("")
 
