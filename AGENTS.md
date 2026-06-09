@@ -30,6 +30,7 @@ python scripts/report.py 002346 --mode detailed --strategy swing --html --out re
 ```
 
 `--strategy` changes only the operation-suggestion perspective and does not turn StockSight into a buy/sell recommendation engine. Omit the flag, or use `--strategy neutral`, to keep the default neutral report posture.
+When `--strategy mainline` is used, detailed reports also separate the mainline direction score from the swing buy-point score: the mainline layer answers whether the direction is worth doing, while the swing layer answers whether the single stock has a timing/hold setup.
 
 | Strategy | Perspective | Use when |
 |:---|:---|:---|
@@ -37,6 +38,14 @@ python scripts/report.py 002346 --mode detailed --strategy swing --html --out re
 | `mainline` | A-share mainline first-wave middle segment | Checking whether the current stock fits the mainline trend setup |
 | `risk_avoid` | Risk-screening / risk-avoidance view | Screening ST, delisting, regulatory, earnings, reduction, pledge, or breakdown risks first |
 | `swing` | Swing-trend view | Tracking breakout, pullback, trend-hold, cooldown, and exit conditions |
+
+Scan A-share industry/concept mainline radar:
+
+```bash
+python scripts/mainline_radar.py --board all --limit 30 --out outputs/mainline-radar/today.md
+```
+
+The mainline radar is a market-direction scanner, not a single-stock buy/sell engine. It outputs an automatic radar score plus a pending checklist for the user's 10-item mainline score. Only treat a direction as entering the observation/candidate flow after the full 10-item score reaches 6; unknown items must remain pending instead of being counted as zero.
 
 Generate a US equity report:
 

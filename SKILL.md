@@ -54,6 +54,16 @@ Strategy profiles affect only the operation-suggestion card:
 | `risk_avoid` | Hard-risk screening before participation |
 | `swing` | General swing-trend tracking |
 
+With `--strategy mainline`, detailed reports separate "mainline direction" from "Swing buy point". Use the mainline score to decide whether the direction belongs in the candidate flow, and use the swing score to decide whether the single stock has a breakout, pullback, hold, cooldown, or exit setup.
+
+For a market-wide A-share mainline radar scan:
+
+```bash
+python scripts/mainline_radar.py --board all --limit 30 --out outputs/mainline-radar/today.md
+```
+
+The radar reports automatic observable heat separately from the user's full 10-item mainline score. Unknown items are listed as pending; do not count them as zero or as passed. Use the radar to find directions, then use detailed reports with `--strategy mainline` or `--strategy swing` for single-stock fit and timing.
+
 To capture a long PNG screenshot from an HTML report:
 
 ```bash

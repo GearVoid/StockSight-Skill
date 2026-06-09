@@ -4,7 +4,7 @@
 from typing import Dict, List, Sequence, Tuple
 import math
 
-from core import RiskSignal, StockData, evaluate_strategy_action
+from core import RiskSignal, StockData, evaluate_strategy_action, evaluate_strategy_separation
 from .base import (
     fmt_signal_level,
     final_judgment,
@@ -143,6 +143,11 @@ def _decision_card_html(stock: StockData, signals: Sequence[RiskSignal], technic
         extra_rows += f'<div><dt>时间止损</dt><dd>{_html(decision.time_stop)}</dd></div>'
     if decision.position_note:
         extra_rows += f'<div><dt>仓位提示</dt><dd>{_html(decision.position_note)}</dd></div>'
+    separation_html = (
+        _strategy_separation_html(stock, signals, technical, news)
+        if profile == "mainline"
+        else ""
+    )
 
     return (
         '<section class="panel" id="decision">'
@@ -173,14 +178,48 @@ def _decision_card_html(stock: StockData, signals: Sequence[RiskSignal], technic
         + f'<p>{_html(decision.summary)}</p>'
         + (f'<ul>{basis}</ul>' if basis else '')
         + '<dl>'
-        f'<div><dt>确认条件</dt><dd>{_html(decision.confirmation)}</dd></div>'
-        f'<div><dt>失效条件</dt><dd>{_html(decision.invalidation)}</dd></div>'
+        + f'<div><dt>确认条件</dt><dd>{_html(decision.confirmation)}</dd></div>'
+        + f'<div><dt>失效条件</dt><dd>{_html(decision.invalidation)}</dd></div>'
         + extra_rows
         + f'<div><dt>风险备注</dt><dd>{_html(decision.risk_note)}</dd></div>'
-        '</dl>'
+        + '</dl>'
+        + separation_html
+        + '</div>'
+        + '<p class="muted dc-disclaimer">以上参考数值基于技术指标计算，不构成投资建议。</p>'
+        + "</section>"
+    )
+
+
+def _strategy_separation_html(stock: StockData, signals: Sequence[RiskSignal], technical=None, news=None) -> str:
+    separation = evaluate_strategy_separation(stock, signals, technical, news)
+
+    def card_html(card) -> str:
+        hits = "".join(f"<li>{_html(item)}</li>" for item in card.hits[:4])
+        if not hits:
+            hits = "<li>暂无可量化依据，需补充板块、技术或新闻信息。</li>"
+        return (
+            '<div class="strategy-split-card">'
+            f'<h4>{_html(card.label)}</h4>'
+            f'<p class="muted">{_html(card.role)}</p>'
+            '<div class="strategy-split-meta">'
+            f'<span>评分 <strong>{_html(card.score_text)}</strong></span>'
+            f'<span>状态 <strong>{_html(card.status)}</strong></span>'
+            f'<span>动作 <strong>{_html(card.decision.action)}</strong></span>'
+            '</div>'
+            f'<ul>{hits}</ul>'
+            '</div>'
+        )
+
+    return (
+        '<div class="strategy-split">'
+        '<h3>主线方向 / Swing 买点分离</h3>'
+        f'<p><strong>组合结论：</strong>{_html(separation.summary)}</p>'
+        f'<p><strong>下一步：</strong>{_html(separation.next_step)}</p>'
+        '<div class="strategy-split-grid">'
+        + card_html(separation.mainline)
+        + card_html(separation.swing)
+        + '</div>'
         '</div>'
-        '<p class="muted dc-disclaimer">以上参考数值基于技术指标计算，不构成投资建议。</p>'
-        "</section>"
     )
 
 

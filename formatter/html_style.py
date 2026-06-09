@@ -588,6 +588,50 @@ def _style() -> str:
       font-size: 13px;
       line-height: 1.55;
     }
+    .strategy-split {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+    .strategy-split h3 {
+      margin: 0 0 10px;
+      font-size: 17px;
+      color: var(--text);
+    }
+    .strategy-split-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .strategy-split-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff;
+    }
+    .strategy-split-card h4 {
+      margin: 0 0 6px;
+      font-size: 15px;
+      color: var(--text);
+    }
+    .strategy-split-meta {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin: 10px 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .strategy-split-meta strong {
+      display: block;
+      color: var(--text);
+      margin-top: 2px;
+    }
+    .strategy-split-card ul {
+      margin: 8px 0 0 18px;
+      padding: 0;
+    }
     .dc-disclaimer { margin-top: 12px; text-align: center; }
 
     /* ---- 最终判断 ---- */

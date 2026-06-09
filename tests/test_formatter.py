@@ -54,7 +54,7 @@ class FormatterTests(unittest.TestCase):
         self.assertIn("数据可信度", html)
         self.assertIn("行情时间", html)
         self.assertIn("Snapshot", html)
-        self.assertIn("StockSight v0.4.0", html)
+        self.assertIn("StockSight v0.5.0", html)
         self.assertIn("异动强度", html)
         self.assertIn("下行风险", html)
         self.assertIn("异动强度拆解", html)
@@ -115,8 +115,13 @@ class FormatterTests(unittest.TestCase):
         self.assertIn("结论类型：策略适配度判断，不构成买卖建议", markdown)
         self.assertIn("时间止损", markdown)
         self.assertIn("仓位提示", markdown)
+        self.assertIn("主线方向 / Swing 买点分离", markdown)
+        self.assertIn("主线方向评分", markdown)
+        self.assertIn("Swing 买点评分", markdown)
         self.assertIn("A股主线第一波中段趋势策略", html)
         self.assertIn("策略适配度判断", html)
+        self.assertIn("主线方向 / Swing 买点分离", html)
+        self.assertIn("Swing 买点评分", html)
 
     def test_risk_avoid_strategy_profile_renders_in_markdown_and_html(self):
         data = sample_report(strategy_profile="risk_avoid")
@@ -137,8 +142,10 @@ class FormatterTests(unittest.TestCase):
 
         self.assertIn("策略视角：波段趋势视角", markdown)
         self.assertIn("结论类型：策略适配度判断，不构成买卖建议", markdown)
+        self.assertNotIn("主线方向 / Swing 买点分离", markdown)
         self.assertIn("波段趋势视角", html)
         self.assertIn("波段", html)
+        self.assertNotIn("主线方向 / Swing 买点分离", html)
 
     def test_neutral_strategy_profile_does_not_render_mainline_copy(self):
         markdown = render_detailed_report(sample_report())

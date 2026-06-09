@@ -1,5 +1,18 @@
 ﻿# Changelog
 
+## v0.5.0 - 2026-06-09
+
+Mainline radar and separated strategy execution release. StockSight can now scan market directions before evaluating single-stock timing, keeping mainline fit and swing buy-point structure distinct.
+
+### Added
+- Added A-share mainline radar CLI for scanning EastMoney industry/concept boards with automatic radar scores and pending 10-item mainline checks.
+- Added separated mainline-direction and Swing buy-point scorecards to detailed `--strategy mainline` reports.
+
+### Changed
+- Expanded EastMoney board parsing with concept-board support, breadth, leader, turnover, and main-net-inflow fields for radar scoring.
+- Updated AGENTS/README/SKILL guidance for the mainline radar flow and separated mainline/swing report sections.
+- Bumped the README badge and HTML footer version to `v0.5.0`.
+
 ## v0.4.0 - 2026-06-03
 
 Strategy profiles and free A-share hard-information release. StockSight now keeps the default neutral posture while allowing agents to render operation suggestions from mainline, risk-screening, or swing-trend views.

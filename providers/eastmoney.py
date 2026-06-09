@@ -40,7 +40,7 @@ FIELDS_STOCK = (
 )
 
 # clist/get 字段：板块列表
-FIELDS_SECTOR = "f12,f14,f2,f3,f4"
+FIELDS_SECTOR = "f12,f14,f2,f3,f4,f8,f20,f62,f104,f105,f128,f136"
 
 # clist/get 字段：板块成分
 FIELDS_CONSTITUENT = "f12,f14,f3,f8"
@@ -61,8 +61,8 @@ class EastMoneyDataSource(DataSource):
         self._session = requests.Session()
         self._timeout = timeout
         self._max_retries = max_retries
-        # 板块缓存: {BK代码: 板块名}
-        self._sector_cache: Optional[List[Dict]] = None
+        # 板块缓存: {"industry": [...], "concept": [...]}
+        self._sector_cache: Dict[str, List[Dict]] = {}
         # 板块成分缓存: {BK代码: StockData均值}
         self._constituent_cache: Dict[str, StockData] = {}
 
@@ -255,21 +255,28 @@ class EastMoneyDataSource(DataSource):
     # 板块数据
     # ------------------------------------------------------------------
 
-    def get_sector_list(self) -> List[Dict]:
-        """获取行业板块列表（单页，最多前100个）
+    def get_sector_list(self, board_type: str = "industry") -> List[Dict]:
+        """获取行业/概念板块列表（单页，最多前100个）
 
         注意：clist/get API 有反爬限制，可能返回空。
         板块数据为增强功能，不影响核心行情获取。
 
+        Args:
+            board_type: "industry" 行业板块，或 "concept" 概念板块。
+
         Returns:
-            [{code: "BK1408", name: "软件开发", change: 1.25}]
+            [{code: "BK1408", name: "软件开发", change: 1.25, ...}]
         """
-        if self._sector_cache is not None:
-            return self._sector_cache
+        board_type = board_type or "industry"
+        if board_type not in ("industry", "concept"):
+            raise ValueError("board_type must be 'industry' or 'concept'")
+        if board_type in self._sector_cache:
+            return self._sector_cache[board_type]
 
         sectors = []
 
         try:
+            fs = "m:90+t:2" if board_type == "industry" else "m:90+t:3+f:!50"
             params = {
                 "pn": "1",
                 "pz": "100",
@@ -279,7 +286,7 @@ class EastMoneyDataSource(DataSource):
                 "fltt": "2",
                 "invt": "2",
                 "fid": "f3",
-                "fs": "m:90+t:2",  # 行业板块
+                "fs": fs,
                 "fields": FIELDS_SECTOR,
             }
             resp = self._session.get(
@@ -305,9 +312,18 @@ class EastMoneyDataSource(DataSource):
                     "name": item.get("f14", ""),
                     "index_price": item.get("f2"),
                     "change": item.get("f3"),
+                    "change_amount": item.get("f4"),
+                    "turnover_rate": item.get("f8"),
+                    "market_cap": item.get("f20"),
+                    "main_net_inflow": item.get("f62"),
+                    "up_count": item.get("f104"),
+                    "down_count": item.get("f105"),
+                    "leader": item.get("f128"),
+                    "leader_change": item.get("f136"),
+                    "board_type": board_type,
                 })
 
-            self._sector_cache = sectors
+            self._sector_cache[board_type] = sectors
             return sectors
         except Exception as e:
             logger.warning("东财板块列表异常: %s", e)
