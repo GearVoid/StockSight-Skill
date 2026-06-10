@@ -278,6 +278,9 @@ class StrategyTests(unittest.TestCase):
         )
 
         self.assertEqual(decision.action, "波段候选")
+        self.assertEqual(decision.score, 8.0)
+        self.assertEqual(decision.score_max, 8.0)
+        self.assertEqual(decision.strategy_version, "swing-v1")
         self.assertEqual(decision.profile, "swing")
         self.assertIn("波段趋势视角", decision.profile_label)
 

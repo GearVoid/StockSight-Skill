@@ -9,6 +9,8 @@ __pycache__/
 venv/
 env/
 .sightconfig.json
+.codegraph/
+backtest-cache/
 *.log
 reports/
 outputs/

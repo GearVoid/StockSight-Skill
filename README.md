@@ -121,6 +121,52 @@ python scripts/report.py 002346 --mode detailed --strategy swing --html --out re
 | `risk_avoid` | 风险排雷视角 | 优先筛 ST/退市、监管、减持、业绩、破位等风险 |
 | `swing` | 波段趋势视角 | 看突破、回踩、趋势持有和退出条件 |
 
+### Swing 回测与概率校准
+
+用多个代码生成可复现的历史回测、事件明细和校准文件：
+
+```bash
+python scripts/backtest.py 002346 600570 300750 \
+  --days 800 \
+  --out outputs/backtests/swing-backtest.md \
+  --calibration-out outputs/backtests/swing-calibration.json \
+  --trades-out outputs/backtests/swing-observations.csv
+```
+
+代码较多时可使用 `--codes-file watchlist.txt`。历史数据默认缓存到 `backtest-cache/`；使用 `--refresh` 强制更新。
+
+把校准结果加载进实时 Swing 报告：
+
+```bash
+python scripts/report.py 002346 \
+  --mode detailed \
+  --strategy swing \
+  --calibration-file outputs/backtests/swing-calibration.json \
+  --html \
+  --out reports/002346-swing.html
+```
+
+回测口径固定为：收盘形成信号、次交易日开盘进入、仅记录策略状态首次切换，主要观察 10 个交易日净收益，同时统计 5 日和 20 日结果。默认扣除 10 bps 往返成本，可用 `--cost-bps` 修改。历史量比按“当日成交量 / 前 5 日平均成交量”重建，不等同于盘中供应商量比。校准使用按时间顺序切分的样本外验证，并输出 Brier Score、基准 Brier、Brier Skill、ECE、动作/评分分组胜率、平均收益、MFE 和 MAE。
+
+### 价格与波动率交易计划
+
+详细报告会使用 ATR(14)、近期结构低点、近 20 日阻力和账户风险预算生成触发价、入场区、结构止损、两档目标及建议仓位：
+
+```bash
+python scripts/report.py 002346 \
+  --mode detailed \
+  --strategy swing \
+  --account-size 100000 \
+  --risk-per-trade 0.5 \
+  --max-position 20 \
+  --atr-period 14 \
+  --max-stop-percent 8 \
+  --html \
+  --out reports/002346-plan.html
+```
+
+默认单笔最大账户风险为 `0.5%`，单票仓位上限为 `20%`。A 股数量按 100 股整手向下取整。若结构止损距离超过 `8%`、当前价已经越过计划入场区、策略处于退出/降温/风险规避状态，计划会自动变成等待或零新仓位，不会为了给出数字而强行计算买入量。
+
 扫描 A 股行业/概念主线雷达：
 
 ```bash
@@ -182,6 +228,8 @@ python scripts/screenshot_report.py reports/002346.html --out docs/images/002346
 7. 校验输出：Markdown 用 `validate_report(report_text, data)`。
 8. 追求一致性时：优先 `--save-snapshot`，后续一律 `--from-snapshot` 渲染；报告顶部会标明 snapshot 来源和指标截止日期。
 9. 需要分享给用户时：优先对 HTML 使用 `scripts/screenshot_report.py` 生成长截图；PDF 交给用户本机浏览器处理。
+10. 需要展示策略历史表现时：先用 `scripts/backtest.py` 对多代码样本生成校准 JSON，再通过 `--calibration-file` 加载；不要用单只股票或少量样本宣称策略有效。
+11. 需要具体执行计划时：传入 `--account-size`；系统按 ATR、结构止损和风险预算计算仓位，而不是沿用固定百分比止损。
 
 ### 风险口径
 

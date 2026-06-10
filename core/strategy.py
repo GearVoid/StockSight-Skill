@@ -22,6 +22,7 @@ ACTION_TREND_HOLD = "趋势持有"
 ACTION_LOW_REPAIR = "低位修复"
 ACTION_STABLE_TRACK = "平稳跟踪"
 HARD_RISK_NEWS_MAX_AGE_DAYS = 120
+SWING_STRATEGY_VERSION = "swing-v1"
 
 
 @dataclass(frozen=True)
@@ -39,6 +40,10 @@ class StrategyDecision:
     profile_label: str = ""
     time_stop: str = ""
     position_note: str = ""
+    score: Optional[float] = None
+    score_max: Optional[float] = None
+    score_factors: List[str] = field(default_factory=list)
+    strategy_version: str = ""
 
 
 def evaluate_strategy_action(
@@ -585,6 +590,32 @@ def _evaluate_swing_strategy(
     profile_label = "波段趋势视角"
     common_time_stop = "介入后 5–8 个交易日无趋势延续应降仓；跌回平台或跌破回踩低点时退出观察。"
     common_position = "分批参与，单票计划仓位控制在 10%–20%；只在趋势确认后加仓，不亏损补仓。"
+    swing_score = 0
+    score_basis: List[str] = []
+    if change >= 1.5:
+        swing_score += 1
+        score_basis.append("价格右侧走强")
+    if vr >= 1.3:
+        swing_score += 1
+        score_basis.append("量能放大")
+    if 1 <= tr <= 12:
+        swing_score += 1
+        score_basis.append("换手处于波段可观察区")
+    if macd_alignment == "bullish":
+        swing_score += 2
+        score_basis.append("MACD 多头结构")
+    elif macd_alignment != "bearish":
+        swing_score += 1
+        score_basis.append("MACD 未明显空头")
+    if rsi_latest is not None and 45 <= rsi_latest < 70:
+        swing_score += 1
+        score_basis.append("RSI 处于趋势区且未过热")
+    if price_position in ("upper_half", "near_upper") and change >= 0:
+        swing_score += 1
+        score_basis.append("价格处于 BOLL 偏强区域")
+    if kdj_j is not None and 35 <= kdj_j < 95:
+        swing_score += 1
+        score_basis.append("KDJ 未极端")
 
     def decision(
         action: str,
@@ -612,6 +643,10 @@ def _evaluate_swing_strategy(
             profile_label=profile_label,
             time_stop=common_time_stop,
             position_note=common_position,
+            score=float(swing_score),
+            score_max=8.0,
+            score_factors=list(score_basis),
+            strategy_version=SWING_STRATEGY_VERSION,
         )
 
     if hard_risk:
@@ -654,34 +689,7 @@ def _evaluate_swing_strategy(
             ["过热或背离风险命中"],
         )
 
-    swing_score = 0
-    score_basis: List[str] = []
-    if change >= 1.5:
-        swing_score += 1
-        score_basis.append("价格右侧走强")
-    if vr >= 1.3:
-        swing_score += 1
-        score_basis.append("量能放大")
-    if 1 <= tr <= 12:
-        swing_score += 1
-        score_basis.append("换手处于波段可观察区")
-    if macd_alignment == "bullish":
-        swing_score += 2
-        score_basis.append("MACD 多头结构")
-    elif macd_alignment != "bearish":
-        swing_score += 1
-        score_basis.append("MACD 未明显空头")
-    if rsi_latest is not None and 45 <= rsi_latest < 70:
-        swing_score += 1
-        score_basis.append("RSI 处于趋势区且未过热")
-    if price_position in ("upper_half", "near_upper") and change >= 0:
-        swing_score += 1
-        score_basis.append("价格处于 BOLL 偏强区域")
-    if kdj_j is not None and 35 <= kdj_j < 95:
-        swing_score += 1
-        score_basis.append("KDJ 未极端")
-
-    score_basis.append(f"波段趋势评分 {swing_score}/8")
+    score_display_basis = score_basis + [f"波段趋势评分 {swing_score}/8"]
     if breakout or swing_score >= 6:
         return decision(
             "波段候选",
@@ -690,7 +698,7 @@ def _evaluate_swing_strategy(
             "确认突破后能站稳、回踩缩量不破，并且 MACD/RSI 不转弱。",
             "跌回平台、量能快速萎缩或 MACD 柱体连续收敛，则候选条件失效。",
             "候选不等于立即重仓，先等交易计划中的触发价和止损位明确。",
-            score_basis,
+            score_display_basis,
         )
     if trend_hold or (macd_alignment == "bullish" and not downside):
         return decision(
@@ -700,7 +708,7 @@ def _evaluate_swing_strategy(
             "确认价格保持在平台或均线上方，量能温和，RSI 不跌破中性区。",
             "跌破平台、MACD 转空或连续放量阴线时，趋势持有失效。",
             "持有条件来自趋势延续，不来自摊低成本。",
-            score_basis,
+            score_display_basis,
         )
     if low_repair or price_position == "near_lower" or (rsi_latest is not None and rsi_latest <= 40):
         return decision(
@@ -710,7 +718,7 @@ def _evaluate_swing_strategy(
             "等待缩量止跌、KDJ/RSI 拐头、价格收回均衡区后再评估。",
             "若回踩继续放量下跌或跌破前低，转为触发退出。",
             "回踩观察只是等待区，不是自动低吸信号。",
-            score_basis,
+            score_display_basis,
         )
     return decision(
         "仅观察",
@@ -719,7 +727,7 @@ def _evaluate_swing_strategy(
         "等待放量突破、缩量回踩不破，或 MACD/RSI 重新同步转强。",
         "若持续横盘低效、量能萎缩或转为下行结构，则不进入波段候选。",
         "没有清晰波段结构时，应让资金保持机动。",
-        score_basis,
+        score_display_basis,
     )
 
 

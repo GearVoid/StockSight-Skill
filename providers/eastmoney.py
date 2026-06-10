@@ -243,6 +243,9 @@ class EastMoneyDataSource(DataSource):
                     high=float(parts[3]),
                     low=float(parts[4]),
                     volume=int(parts[5]),
+                    amount=float(parts[6]) / 10000 if len(parts) > 6 and parts[6] else 0.0,
+                    change_percent=float(parts[8]) if len(parts) > 8 and parts[8] else 0.0,
+                    turnover_rate=float(parts[10]) if len(parts) > 10 and parts[10] else 0.0,
                 ))
 
             return StockHistory(code=code, bars=bars)

@@ -4,7 +4,7 @@ import unittest
 import json
 from pathlib import Path
 
-from core import RSIResult, TechnicalAnalysis, TechnicalSignal
+from core import RSIResult, StrategyPerformance, TechnicalAnalysis, TechnicalSignal, TradePlan
 from scripts import report
 from tests.fixtures import sample_report
 
@@ -32,6 +32,28 @@ class ReportSnapshotTests(unittest.TestCase):
             technical=sample_technical(),
             source_notes=["实时行情：unit", "历史行情：unit-history（80条）"],
             strategy_profile="mainline",
+            strategy_performance=StrategyPerformance(
+                profile="swing",
+                strategy_version="swing-v1",
+                horizon_days=10,
+                probability_positive=0.61,
+                sample_size=88,
+                reliability="中等",
+            ),
+            trade_plan=TradePlan(
+                profile="swing",
+                action="波段候选",
+                status="ready",
+                status_label="条件触发后执行",
+                entry_style="突破触发",
+                trigger_price=10.2,
+                entry_low=10.2,
+                entry_high=10.3,
+                stop_loss=9.6,
+                target_1=11.1,
+                target_2=11.7,
+                suggested_position_percent=8.0,
+            ),
         )
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -56,6 +78,10 @@ class ReportSnapshotTests(unittest.TestCase):
         self.assertEqual(restored.technical.signals[0].indicator, "RSI")
         self.assertEqual(restored.source_notes, data.source_notes)
         self.assertEqual(restored.strategy_profile, "mainline")
+        self.assertIsNotNone(restored.strategy_performance)
+        self.assertEqual(restored.strategy_performance.sample_size, 88)
+        self.assertIsNotNone(restored.trade_plan)
+        self.assertEqual(restored.trade_plan.trigger_price, 10.2)
         self.assertEqual(restored.snapshot_source, str(snapshot))
         self.assertEqual(meta["mode"], "detailed")
         self.assertEqual(meta["provider"], "unit")
@@ -132,6 +158,58 @@ class ReportSnapshotTests(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             markdown_text = markdown.read_text(encoding="utf-8")
             self.assertIn("策略视角：A股主线第一波中段趋势策略", markdown_text)
+
+    def test_cli_loads_swing_calibration_into_markdown_and_html(self):
+        data = sample_report(strategy_profile="swing")
+        calibration = {
+            "schema_version": 1,
+            "profile": "swing",
+            "strategy_version": "swing-v1",
+            "generated_at": "2026-06-10 15:00:00",
+            "primary_horizon_days": 10,
+            "mapping": {
+                "minimum_bucket_samples": 1,
+                "exact": {},
+                "actions": {},
+                "scores": {},
+                "global": {
+                    "sample_size": 50,
+                    "probability_positive": 0.62,
+                    "mean_return": 2.1,
+                    "median_return": 1.4,
+                },
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            snapshot = base / "sample.json"
+            calibration_path = base / "calibration.json"
+            markdown = base / "sample.md"
+            html = base / "sample.html"
+            report._save_snapshot(snapshot, data, mode="detailed", provider="unit", failed=[], quality_notes=[])
+            calibration_path.write_text(json.dumps(calibration, ensure_ascii=False), encoding="utf-8")
+
+            exit_code = report.main(
+                [
+                    "--from-snapshot",
+                    str(snapshot),
+                    "--strategy",
+                    "swing",
+                    "--calibration-file",
+                    str(calibration_path),
+                    "--markdown-out",
+                    str(markdown),
+                    "--html",
+                    "--out",
+                    str(html),
+                ]
+            )
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("历史样本外表现", markdown.read_text(encoding="utf-8"))
+            self.assertIn("62.0%", markdown.read_text(encoding="utf-8"))
+            self.assertIn("历史样本外表现", html.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

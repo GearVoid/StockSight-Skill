@@ -7,6 +7,8 @@ from .types import (
     NewsItem,
     RSIResult,
     ReportData,
+    StrategyPerformance,
+    TradePlan,
     RiskSignal,
     StockData,
     StockHistory,
@@ -29,7 +31,7 @@ from .analysis import (
     detect_rsi_signals,
     technical_risk_signals,
 )
-from .strategy import StrategyDecision, evaluate_strategy_action
+from .strategy import SWING_STRATEGY_VERSION, StrategyDecision, evaluate_strategy_action
 from .strategy_breakdown import (
     StrategyScorecard,
     StrategySeparation,
@@ -43,6 +45,17 @@ from .mainline_radar import (
     render_mainline_radar_markdown,
     sector_from_mapping,
 )
+from .backtest import (
+    BacktestConfig,
+    BacktestObservation,
+    BacktestResult,
+    estimate_strategy_performance,
+    load_calibration,
+    render_backtest_markdown,
+    run_swing_backtest,
+    save_calibration,
+)
+from .trade_plan import build_trade_plan, compute_atr, resize_trade_plan
 from .market import detect_market, detect_tencent_prefix, detect_sina_prefix, to_eastmoney_secid
 
 __all__ = [
@@ -56,6 +69,8 @@ __all__ = [
     "StockData",
     "RiskSignal",
     "ReportData",
+    "StrategyPerformance",
+    "TradePlan",
     "TechnicalAnalysis",
     "TechnicalSignal",
     "TrendSummary",
@@ -83,6 +98,7 @@ __all__ = [
     "detect_rsi_signals",
     "technical_risk_signals",
     "StrategyDecision",
+    "SWING_STRATEGY_VERSION",
     "evaluate_strategy_action",
     "StrategyScorecard",
     "StrategySeparation",
@@ -93,4 +109,15 @@ __all__ = [
     "evaluate_sector_rows",
     "render_mainline_radar_markdown",
     "sector_from_mapping",
+    "BacktestConfig",
+    "BacktestObservation",
+    "BacktestResult",
+    "estimate_strategy_performance",
+    "load_calibration",
+    "render_backtest_markdown",
+    "run_swing_backtest",
+    "save_calibration",
+    "build_trade_plan",
+    "compute_atr",
+    "resize_trade_plan",
 ]

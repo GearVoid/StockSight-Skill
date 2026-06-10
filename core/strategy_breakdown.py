@@ -102,7 +102,10 @@ def evaluate_strategy_separation(
     )
 
     mainline_score, mainline_max = _extract_score(mainline_decision, _MAINLINE_SCORE_RE)
-    swing_score, swing_max = _extract_score(swing_decision, _SWING_SCORE_RE)
+    swing_score = swing_decision.score
+    swing_max = swing_decision.score_max
+    if swing_score is None or swing_max is None:
+        swing_score, swing_max = _extract_score(swing_decision, _SWING_SCORE_RE)
     mainline_card = StrategyScorecard(
         label="主线方向评分",
         role="判断这个方向/个股是否适合按 A 股主线第一波中段处理。",

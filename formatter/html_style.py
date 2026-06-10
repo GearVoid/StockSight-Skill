@@ -565,6 +565,54 @@ def _style() -> str:
       font-size: 13px;
     }
     .dc-strategy-details li { margin: 4px 0; }
+    .strategy-performance {
+      margin-top: 18px;
+      padding: 16px;
+      border: 1px solid #dbe6f4;
+      border-radius: 14px;
+      background: #f8fbff;
+    }
+    .strategy-performance h3 { margin: 0 0 12px; font-size: 16px; }
+    .strategy-performance-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .strategy-performance-grid div {
+      padding: 10px;
+      border-radius: 10px;
+      background: white;
+      border: 1px solid #e7edf5;
+    }
+    .strategy-performance-grid span {
+      display: block;
+      color: #6b7280;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+    .strategy-performance-grid strong { font-size: 17px; color: #172033; }
+    .trade-plan-details {
+      margin-top: 18px;
+      padding: 16px;
+      border: 1px solid #d9e5dc;
+      border-radius: 14px;
+      background: #f7fbf8;
+    }
+    .trade-plan-details h3 { margin: 0 0 10px; font-size: 16px; }
+    .trade-plan-details dl {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px 14px;
+      margin: 12px 0;
+    }
+    .trade-plan-details dl div {
+      padding: 9px 10px;
+      border: 1px solid #e1ebe4;
+      border-radius: 9px;
+      background: white;
+    }
+    .trade-plan-details dt { color: #6b7280; font-size: 12px; }
+    .trade-plan-details dd { margin: 3px 0 0; font-weight: 700; color: #172033; }
     .dc-strategy-details dl {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1197,6 +1245,8 @@ def _style() -> str:
       .decision-card { grid-template-columns: 1fr; gap: 8px; }
       .dc-divider { width: 60px; height: 1px; margin: 0 auto; }
       .dc-strategy-details dl { grid-template-columns: 1fr; }
+      .strategy-performance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .trade-plan-details dl { grid-template-columns: 1fr; }
       .radar-dashboard { grid-template-columns: 1fr; }
       .radar-stage { min-height: auto; }
       .signal-row { grid-template-columns: 32px 1fr; }

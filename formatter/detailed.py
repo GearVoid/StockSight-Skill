@@ -66,16 +66,6 @@ def _calc_excess_return(stock: StockData) -> Optional[float]:
     return None
 
 
-def _stop_loss(price: float) -> float:
-    """止损参考价（-5%）"""
-    return round(price * 0.95, 2)
-
-
-def _target_price(price: float) -> float:
-    """目标参考价（+5.6%）"""
-    return round(price * 1.056, 2)
-
-
 def _format_signals_text(signals: List[RiskSignal], stock: StockData) -> str:
     """格式化异动分析段落"""
     parts = []
@@ -482,8 +472,67 @@ def render_detailed_report(data: ReportData) -> str:
     parts.append(decision.summary)
     parts.append("")
     parts.append(f"- 当前价：{format_price(stock.current_price, mk)}")
-    parts.append(f"- 止损参考：{format_price(_stop_loss(stock.current_price), mk)}（-5%）")
-    parts.append(f"- 目标参考：{format_price(_target_price(stock.current_price), mk)}（+5.6%）")
+    plan = data.trade_plan
+    if plan:
+        parts.append(f"- 计划状态：{plan.status_label}")
+        parts.append(f"- 入场方式：{plan.entry_style}")
+        if plan.trigger_price is not None:
+            parts.append(f"- 触发价：{format_price(plan.trigger_price, mk)}")
+        if plan.entry_low is not None and plan.entry_high is not None:
+            parts.append(
+                f"- 计划入场区：{format_price(plan.entry_low, mk)} – "
+                f"{format_price(plan.entry_high, mk)}"
+            )
+        if plan.stop_loss is not None:
+            stop_suffix = (
+                f"（距触发价 {plan.stop_distance_percent:.2f}%）"
+                if plan.stop_distance_percent is not None
+                else ""
+            )
+            parts.append(f"- 结构止损：{format_price(plan.stop_loss, mk)}{stop_suffix}")
+        if plan.target_1 is not None:
+            parts.append(
+                f"- 第一目标：{format_price(plan.target_1, mk)}"
+                + (
+                    f"（{plan.reward_risk_1:.2f}R）"
+                    if plan.reward_risk_1 is not None
+                    else ""
+                )
+            )
+        if plan.target_2 is not None:
+            parts.append(
+                f"- 第二目标：{format_price(plan.target_2, mk)}"
+                + (
+                    f"（{plan.reward_risk_2:.2f}R）"
+                    if plan.reward_risk_2 is not None
+                    else ""
+                )
+            )
+        if plan.atr is not None:
+            parts.append(
+                f"- ATR：{format_price(plan.atr, mk)}"
+                + (
+                    f"（现价的 {plan.atr_percent:.2f}%）"
+                    if plan.atr_percent is not None
+                    else ""
+                )
+            )
+        if plan.suggested_position_percent is not None:
+            parts.append(
+                f"- 建议仓位：{plan.suggested_position_percent:.2f}%"
+                f"（单笔风险预算 {plan.risk_per_trade_percent:.2f}%，"
+                f"单票上限 {plan.max_position_percent:.2f}%）"
+            )
+        if plan.account_size is not None:
+            parts.append(f"- 账户规模：{plan.account_size:,.2f}")
+            parts.append(f"- 风险预算金额：{(plan.risk_budget_amount or 0):,.2f}")
+            parts.append(f"- 计划持仓金额：{(plan.position_value or 0):,.2f}")
+            parts.append(f"- 计划数量：{plan.shares or 0} 股")
+        if plan.basis:
+            parts.append(f"- 计划依据：{'；'.join(plan.basis)}")
+        parts.append(f"- 执行备注：{plan.note}")
+    else:
+        parts.append("- 波动率交易计划：不可用（当前报告未保存足够的历史 K 线信息）")
     if decision.basis:
         parts.append(f"- 触发依据：{'；'.join(decision.basis)}")
     parts.append(f"- 确认条件：{decision.confirmation}")
@@ -493,6 +542,25 @@ def render_detailed_report(data: ReportData) -> str:
     if decision.position_note:
         parts.append(f"- 仓位提示：{decision.position_note}")
     parts.append(f"- 风险备注：{decision.risk_note}")
+    if data.strategy_performance:
+        performance = data.strategy_performance
+        score_text = (
+            f"{performance.score:.0f}/{performance.score_max:.0f}"
+            if performance.score is not None and performance.score_max is not None
+            else "—"
+        )
+        parts.extend(
+            [
+                "",
+                "### 历史样本外表现",
+                "",
+                f"- 匹配动作：{performance.action}（Swing 评分 {score_text}）",
+                f"- {performance.horizon_days} 日净收益为正概率：{performance.probability_positive * 100:.1f}%",
+                f"- 匹配层级：{performance.match_basis or '—'}；样本：{performance.sample_size} 次；可靠性：{performance.reliability}",
+                f"- 平均净收益：{performance.mean_return:+.2f}%；中位净收益：{performance.median_return:+.2f}%",
+                f"- 校准说明：{performance.note}",
+            ]
+        )
     parts.append("")
     if data.strategy_profile == "mainline":
         parts.append(_strategy_separation_markdown(stock, signals, data))
