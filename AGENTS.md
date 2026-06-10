@@ -39,6 +39,37 @@ When `--strategy mainline` is used, detailed reports also separate the mainline 
 | `risk_avoid` | Risk-screening / risk-avoidance view | Screening ST, delisting, regulatory, earnings, reduction, pledge, or breakdown risks first |
 | `swing` | Swing-trend view | Tracking breakout, pullback, trend-hold, cooldown, and exit conditions |
 
+Backtest and calibrate the Swing profile before presenting historical strategy performance:
+
+```bash
+python scripts/backtest.py 002346 600570 300750 --days 800 \
+  --out outputs/backtests/swing-backtest.md \
+  --calibration-out outputs/backtests/swing-calibration.json \
+  --trades-out outputs/backtests/swing-observations.csv
+
+python scripts/report.py 002346 --mode detailed --strategy swing \
+  --calibration-file outputs/backtests/swing-calibration.json \
+  --html --out reports/002346-swing.html
+```
+
+The backtest is point-in-time: a state is evaluated after the daily close, entry uses the next trading day's open, and only the first transition into a new strategy state is counted. Historical volume ratio is reconstructed as daily volume divided by the prior five-day average, not as a provider intraday volume-ratio field. The primary label is positive net return after 10 trading days, with 5-day and 20-day statistics also retained. Default round-trip cost is 10 bps and is configurable with `--cost-bps`.
+
+Use multiple symbols for calibration. Treat fewer than 10 matching observations as insufficient, 10-29 as low reliability, 30-99 as medium, and 100+ as higher reliability. Calibration JSON is accepted only when its strategy version matches the current Swing implementation.
+
+Generate a price- and volatility-based execution plan:
+
+```bash
+python scripts/report.py 002346 --mode detailed --strategy swing \
+  --account-size 100000 \
+  --risk-per-trade 0.5 \
+  --max-position 20 \
+  --atr-period 14 \
+  --max-stop-percent 8 \
+  --html --out reports/002346-plan.html
+```
+
+The plan uses ATR(14), recent structural support, 20-day resistance, and an account risk budget. It outputs an entry trigger/range, structural stop, two R-based targets, stop distance, and position size. A-share quantities are rounded down to 100-share lots. Do not replace unavailable history with fixed `-5%` / `+5.6%` levels. When stop distance exceeds the configured maximum, price has already run beyond the entry zone, or the strategy is in exit/risk-avoid mode, preserve the wait/zero-position result.
+
 Scan A-share industry/concept mainline radar:
 
 ```bash

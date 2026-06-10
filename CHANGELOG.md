@@ -1,5 +1,18 @@
 ﻿# Changelog
 
+## Unreleased
+
+### Added
+- Added a point-in-time Swing backtest CLI with versioned local history caching, next-open entry assumptions, 5/10/20-day net returns, MFE/MAE, and CSV event ledgers.
+- Added chronological holdout probability calibration with Brier Score and expected calibration error diagnostics.
+- Added optional `--calibration-file` support so detailed Swing reports can display matched historical probability, return, sample-size, and reliability context.
+- Added ATR- and structure-based trade plans with entry triggers, stop levels, two R-based targets, account risk budgets, and lot-aware position sizing.
+
+### Changed
+- Exposed Swing score, score maximum, score factors, and strategy version as structured `StrategyDecision` fields.
+- Expanded EastMoney daily history bars with optional amount, change-percent, and turnover fields for historical reconstruction.
+- Replaced fixed `-5%` stop and `+5.6%` target copy with snapshot-safe volatility plans; missing history now renders the plan as unavailable.
+
 ## v0.5.0 - 2026-06-09
 
 Mainline radar and separated strategy execution release. StockSight can now scan market directions before evaluating single-stock timing, keeping mainline fit and swing buy-point structure distinct.

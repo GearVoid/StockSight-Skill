@@ -1,7 +1,7 @@
 ﻿# -*- coding: utf-8 -*-
 import unittest
 
-from core import BOLLResult, KDJResult, MACDResult, NewsItem, RSIResult, RiskSignal, TechnicalAnalysis, TechnicalSignal, TrendSummary
+from core import BOLLResult, KDJResult, MACDResult, NewsItem, RSIResult, RiskSignal, TechnicalAnalysis, TechnicalSignal, TradePlan, TrendSummary
 from formatter import (
     render_detailed_report,
     render_html_report,
@@ -14,6 +14,39 @@ from tests.fixtures import sample_report
 
 
 class FormatterTests(unittest.TestCase):
+    def test_trade_plan_replaces_fixed_stop_and_target_copy(self):
+        data = sample_report(
+            strategy_profile="swing",
+            trade_plan=TradePlan(
+                profile="swing",
+                action="波段候选",
+                status="ready",
+                status_label="条件触发后执行",
+                entry_style="突破触发",
+                trigger_price=10.20,
+                entry_low=10.20,
+                entry_high=10.35,
+                stop_loss=9.55,
+                target_1=11.18,
+                target_2=11.83,
+                atr=0.42,
+                atr_percent=4.2,
+                stop_distance_percent=6.37,
+                reward_risk_1=1.5,
+                reward_risk_2=2.5,
+                suggested_position_percent=7.85,
+            ),
+        )
+
+        markdown = render_detailed_report(data)
+        html = render_html_report(data)
+
+        self.assertIn("价格与波动率交易计划", html)
+        self.assertIn("结构止损", markdown)
+        self.assertIn("1.50R", markdown)
+        self.assertNotIn("（-5%）", markdown)
+        self.assertNotIn("+5.6%", html)
+
     def test_standard_report_validates(self):
         data = sample_report()
         report = render_standard_report(data)

@@ -85,6 +85,12 @@ class HistoryBar:
     low: float
     close: float
     volume: int
+    amount: float = 0.0
+    """成交额（万元）；数据源不提供时为 0。"""
+    turnover_rate: float = 0.0
+    """换手率（%）；数据源不提供时为 0。"""
+    change_percent: float = 0.0
+    """当日涨跌幅（%）；数据源不提供时可由前收盘价推导。"""
 
 
 @dataclass
@@ -290,3 +296,65 @@ class ReportData:
 
     strategy_profile: str = "neutral"
     """策略视角标记；默认 neutral 表示通用中立报告口径。"""
+
+    strategy_performance: Optional["StrategyPerformance"] = None
+    """与当前策略动作匹配的历史样本外表现；未加载校准文件时为空。"""
+
+    trade_plan: Optional["TradePlan"] = None
+    """基于价格结构、ATR 和账户风险预算生成的交易计划。"""
+
+
+@dataclass
+class StrategyPerformance:
+    """当前策略动作对应的历史样本外表现摘要。"""
+
+    profile: str
+    strategy_version: str
+    horizon_days: int
+    probability_positive: float
+    sample_size: int
+    reliability: str
+    mean_return: float = 0.0
+    median_return: float = 0.0
+    action: str = ""
+    score: Optional[float] = None
+    score_max: Optional[float] = None
+    source: str = ""
+    generated_at: str = ""
+    match_basis: str = ""
+    note: str = ""
+
+
+@dataclass
+class TradePlan:
+    """Detailed, risk-budgeted execution plan for one stock."""
+
+    profile: str
+    action: str
+    status: str
+    status_label: str
+    entry_style: str
+    trigger_price: Optional[float] = None
+    entry_low: Optional[float] = None
+    entry_high: Optional[float] = None
+    stop_loss: Optional[float] = None
+    target_1: Optional[float] = None
+    target_2: Optional[float] = None
+    atr: Optional[float] = None
+    atr_percent: Optional[float] = None
+    structure_support: Optional[float] = None
+    recent_resistance: Optional[float] = None
+    stop_distance_percent: Optional[float] = None
+    reward_risk_1: Optional[float] = None
+    reward_risk_2: Optional[float] = None
+    risk_per_trade_percent: float = 0.5
+    max_position_percent: float = 20.0
+    suggested_position_percent: Optional[float] = None
+    account_size: Optional[float] = None
+    risk_budget_amount: Optional[float] = None
+    position_value: Optional[float] = None
+    shares: Optional[int] = None
+    lot_size: int = 1
+    basis: List[str] = field(default_factory=list)
+    invalidation: str = ""
+    note: str = ""

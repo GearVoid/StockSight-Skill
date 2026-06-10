@@ -292,8 +292,8 @@ EASTMONEY_HISTORY_RESPONSE = {
     "rc": 0,
     "data": {
         "klines": [
-            "2026-01-01,10.00,10.50,10.80,9.90,1000,0,0,0,0,0",
-            "2026-01-02,10.50,10.80,11.00,10.40,1200,0,0,0,0,0",
+            "2026-01-01,10.00,10.50,10.80,9.90,1000,2000000,0,5.00,0.50,2.30",
+            "2026-01-02,10.50,10.80,11.00,10.40,1200,2500000,0,2.86,0.30,2.60",
         ]
     },
 }
@@ -399,6 +399,9 @@ class EastMoneyParserTests(unittest.TestCase):
         self.assertEqual(len(history.bars), 2)
         self.assertEqual(history.bars[0].date, "2026-01-01")
         self.assertAlmostEqual(history.bars[-1].close, 10.80)
+        self.assertAlmostEqual(history.bars[-1].amount, 250.0)
+        self.assertAlmostEqual(history.bars[-1].change_percent, 2.86)
+        self.assertAlmostEqual(history.bars[-1].turnover_rate, 2.60)
 
     def test_get_sector_list_parses_radar_fields(self):
         calls = []

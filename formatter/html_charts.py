@@ -117,11 +117,17 @@ def _risk_gauge_html(top_level: int, signals: Sequence[RiskSignal]) -> str:
 # 操作建议决策卡
 # =============================================================================
 
-def _decision_card_html(stock: StockData, signals: Sequence[RiskSignal], technical=None, news=None, profile: str = "neutral") -> str:
+def _decision_card_html(
+    stock: StockData,
+    signals: Sequence[RiskSignal],
+    technical=None,
+    news=None,
+    profile: str = "neutral",
+    performance=None,
+    trade_plan=None,
+) -> str:
     price = stock.current_price
     mk = stock.market
-    stop_loss = round(price * 0.95, 2)
-    target = round(price * 1.056, 2)
     decision = evaluate_strategy_action(stock, signals, technical, news, profile=profile)
     action_class = {
         "danger": "danger",
@@ -143,6 +149,110 @@ def _decision_card_html(stock: StockData, signals: Sequence[RiskSignal], technic
         extra_rows += f'<div><dt>时间止损</dt><dd>{_html(decision.time_stop)}</dd></div>'
     if decision.position_note:
         extra_rows += f'<div><dt>仓位提示</dt><dd>{_html(decision.position_note)}</dd></div>'
+    performance_html = ""
+    if performance:
+        score_text = (
+            f"{performance.score:.0f}/{performance.score_max:.0f}"
+            if performance.score is not None and performance.score_max is not None
+            else "—"
+        )
+        performance_html = (
+            '<div class="strategy-performance">'
+            '<h3>历史样本外表现</h3>'
+            '<div class="strategy-performance-grid">'
+            f'<div><span>{performance.horizon_days}日上涨概率</span><strong>{performance.probability_positive * 100:.1f}%</strong></div>'
+            f'<div><span>匹配样本</span><strong>{performance.sample_size}</strong></div>'
+            f'<div><span>可靠性</span><strong>{_html(performance.reliability)}</strong></div>'
+            f'<div><span>匹配层级</span><strong>{_html(performance.match_basis or "—")}</strong></div>'
+            f'<div><span>Swing评分</span><strong>{_html(score_text)}</strong></div>'
+            f'<div><span>平均净收益</span><strong>{performance.mean_return:+.2f}%</strong></div>'
+            f'<div><span>中位净收益</span><strong>{performance.median_return:+.2f}%</strong></div>'
+            '</div>'
+            f'<p class="muted">{_html(performance.note)}</p>'
+            '</div>'
+        )
+    plan_html = ""
+    if trade_plan:
+        plan_rows = []
+        if trade_plan.trigger_price is not None:
+            plan_rows.append(
+                f'<div><dt>触发价</dt><dd>{_html(format_price(trade_plan.trigger_price, mk))}</dd></div>'
+            )
+        if trade_plan.entry_low is not None and trade_plan.entry_high is not None:
+            plan_rows.append(
+                '<div><dt>计划入场区</dt><dd>'
+                f'{_html(format_price(trade_plan.entry_low, mk))} – '
+                f'{_html(format_price(trade_plan.entry_high, mk))}</dd></div>'
+            )
+        if trade_plan.stop_loss is not None:
+            stop_note = (
+                f" · {trade_plan.stop_distance_percent:.2f}%"
+                if trade_plan.stop_distance_percent is not None
+                else ""
+            )
+            plan_rows.append(
+                f'<div><dt>结构止损</dt><dd>{_html(format_price(trade_plan.stop_loss, mk))}{_html(stop_note)}</dd></div>'
+            )
+        if trade_plan.target_1 is not None:
+            rr = f" · {trade_plan.reward_risk_1:.2f}R" if trade_plan.reward_risk_1 is not None else ""
+            plan_rows.append(
+                f'<div><dt>第一目标</dt><dd>{_html(format_price(trade_plan.target_1, mk))}{_html(rr)}</dd></div>'
+            )
+        if trade_plan.target_2 is not None:
+            rr = f" · {trade_plan.reward_risk_2:.2f}R" if trade_plan.reward_risk_2 is not None else ""
+            plan_rows.append(
+                f'<div><dt>第二目标</dt><dd>{_html(format_price(trade_plan.target_2, mk))}{_html(rr)}</dd></div>'
+            )
+        if trade_plan.atr is not None:
+            atr_note = (
+                f" · {trade_plan.atr_percent:.2f}%"
+                if trade_plan.atr_percent is not None
+                else ""
+            )
+            plan_rows.append(
+                f'<div><dt>ATR</dt><dd>{_html(format_price(trade_plan.atr, mk))}{_html(atr_note)}</dd></div>'
+            )
+        if trade_plan.suggested_position_percent is not None:
+            plan_rows.append(
+                f'<div><dt>建议仓位</dt><dd>{trade_plan.suggested_position_percent:.2f}%</dd></div>'
+            )
+        if trade_plan.account_size is not None:
+            plan_rows.append(
+                f'<div><dt>风险预算</dt><dd>{(trade_plan.risk_budget_amount or 0):,.2f}</dd></div>'
+            )
+            plan_rows.append(
+                f'<div><dt>计划数量</dt><dd>{trade_plan.shares or 0} 股</dd></div>'
+            )
+        plan_html = (
+            '<div class="trade-plan-details">'
+            '<h3>价格与波动率交易计划</h3>'
+            f'<p><strong>{_html(trade_plan.status_label)}</strong> · {_html(trade_plan.entry_style)}</p>'
+            '<dl>'
+            + "".join(plan_rows)
+            + '</dl>'
+            f'<p class="muted">{_html(trade_plan.note)}</p>'
+            '</div>'
+        )
+    stop_price_html = (
+        _html(format_price(trade_plan.stop_loss, mk))
+        if trade_plan and trade_plan.stop_loss is not None
+        else "—"
+    )
+    stop_note_html = (
+        f"{trade_plan.stop_distance_percent:.2f}%"
+        if trade_plan and trade_plan.stop_distance_percent is not None
+        else "ATR / 结构"
+    )
+    target_price_html = (
+        _html(format_price(trade_plan.target_1, mk))
+        if trade_plan and trade_plan.target_1 is not None
+        else "—"
+    )
+    target_note_html = (
+        f"{trade_plan.reward_risk_1:.2f}R"
+        if trade_plan and trade_plan.reward_risk_1 is not None
+        else "风险收益比"
+    )
     separation_html = (
         _strategy_separation_html(stock, signals, technical, news)
         if profile == "mainline"
@@ -155,9 +265,9 @@ def _decision_card_html(stock: StockData, signals: Sequence[RiskSignal], technic
         '<div class="decision-card">'
         '<div class="dc-col dc-loss">'
         '<div class="dc-arrow dc-arrow-down">&#9660;</div>'
-        '<span class="dc-label">止损参考</span>'
-        f'<strong class="dc-price">{_html(format_price(stop_loss, mk))}</strong>'
-        '<span class="dc-note">-5%</span>'
+        '<span class="dc-label">结构止损</span>'
+        f'<strong class="dc-price">{stop_price_html}</strong>'
+        f'<span class="dc-note">{_html(stop_note_html)}</span>'
         "</div>"
         '<div class="dc-divider"></div>'
         '<div class="dc-col dc-current">'
@@ -168,9 +278,9 @@ def _decision_card_html(stock: StockData, signals: Sequence[RiskSignal], technic
         '<div class="dc-divider"></div>'
         '<div class="dc-col dc-target">'
         '<div class="dc-arrow dc-arrow-up">&#9650;</div>'
-        '<span class="dc-label">目标参考</span>'
-        f'<strong class="dc-price">{_html(format_price(target, mk))}</strong>'
-        '<span class="dc-note">+5.6%</span>'
+        '<span class="dc-label">第一目标</span>'
+        f'<strong class="dc-price">{target_price_html}</strong>'
+        f'<span class="dc-note">{_html(target_note_html)}</span>'
         "</div>"
         "</div>"
         '<div class="dc-strategy-details">'
@@ -183,6 +293,8 @@ def _decision_card_html(stock: StockData, signals: Sequence[RiskSignal], technic
         + extra_rows
         + f'<div><dt>风险备注</dt><dd>{_html(decision.risk_note)}</dd></div>'
         + '</dl>'
+        + plan_html
+        + performance_html
         + separation_html
         + '</div>'
         + '<p class="muted dc-disclaimer">以上参考数值基于技术指标计算，不构成投资建议。</p>'

@@ -135,7 +135,15 @@ def render_html_report(data: ReportData, mode: str = "detailed", macd_result=Non
         detailed_only = (
             _risk_gauge_html(top_level, visible_signals)
             + _radar_html(visible_signals, first_stock)
-            + _decision_card_html(first_stock, visible_signals, technical, data.news, profile=data.strategy_profile)
+            + _decision_card_html(
+                first_stock,
+                visible_signals,
+                technical,
+                data.news,
+                profile=data.strategy_profile,
+                performance=data.strategy_performance,
+                trade_plan=data.trade_plan,
+            )
         )
 
     body = (
