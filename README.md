@@ -1,6 +1,6 @@
 ﻿# StockSight-Skill
 
-[![Version](https://img.shields.io/badge/version-v0.5.0-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.5.0)
+[![Version](https://img.shields.io/badge/version-v0.6.0-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.6.0)
 [![Python](https://img.shields.io/badge/python-3.9%2B-2563eb)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
 [![Skill Ready](https://img.shields.io/badge/Codex%20Skill-ready-f97316)](SKILL.md)
@@ -11,7 +11,7 @@ StockSight-Skill 不是“再写一个行情脚本”。它更像一个小型盘
 
 > Feed it a ticker. It returns a market brief your agent can actually hand to a human.
 
-![StockSight full AAPL report](docs/images/stocksight-report-full.png)
+![StockSight full lifecycle report](docs/images/stocksight-report-full.png)
 
 ## 亮点
 
@@ -167,6 +167,36 @@ python scripts/report.py 002346 \
 
 默认单笔最大账户风险为 `0.5%`，单票仓位上限为 `20%`。A 股数量按 100 股整手向下取整。若结构止损距离超过 `8%`、当前价已经越过计划入场区、策略处于退出/降温/风险规避状态，计划会自动变成等待或零新仓位，不会为了给出数字而强行计算买入量。
 
+### 候选到复盘的状态闭环
+
+使用独立生命周期账本持续跟踪同一只股票和策略视角。价格进入计划入场区时，系统会自动从“候选”推进到“已触发”；实际持仓必须通过成交价确认：
+
+```bash
+# 创建候选并按实时高低价自动检查触发
+python scripts/report.py 002346 --mode detailed --strategy swing \
+  --account-size 100000 --lifecycle-file portfolios/trades.json \
+  --html --out reports/002346-live.html
+
+# 确认实际成交，进入持仓
+python scripts/report.py 002346 --mode detailed --strategy swing \
+  --lifecycle-file portfolios/trades.json \
+  --fill-price 16.82 --fill-shares 500
+
+# 手工确认退出；止损、第二目标或策略失效也可自动推进退出
+python scripts/report.py 002346 --mode detailed --strategy swing \
+  --lifecycle-file portfolios/trades.json \
+  --exit-price 18.36 --exit-reason "达到计划目标"
+
+# 退出后封存复盘
+python scripts/report.py 002346 --mode detailed --strategy swing \
+  --lifecycle-file portfolios/trades.json \
+  --review-grade B --review-note "方向正确，但首次加仓偏早"
+```
+
+账本保存完整迁移记录、计划止损、实际成交、退出原因、收益金额、收益率、R 倍数和持有天数。候选和触发可以自动推进，持仓必须有实际成交确认，避免把观察信号冒充交易。Snapshot 回放只读取生命周期视图，不允许改写真实账本。
+
+![StockSight lifecycle panel](docs/images/stocksight-lifecycle.png)
+
 扫描 A 股行业/概念主线雷达：
 
 ```bash
@@ -230,6 +260,7 @@ python scripts/screenshot_report.py reports/002346.html --out docs/images/002346
 9. 需要分享给用户时：优先对 HTML 使用 `scripts/screenshot_report.py` 生成长截图；PDF 交给用户本机浏览器处理。
 10. 需要展示策略历史表现时：先用 `scripts/backtest.py` 对多代码样本生成校准 JSON，再通过 `--calibration-file` 加载；不要用单只股票或少量样本宣称策略有效。
 11. 需要具体执行计划时：传入 `--account-size`；系统按 ATR、结构止损和风险预算计算仓位，而不是沿用固定百分比止损。
+12. 需要持续跟踪一笔交易时：传入 `--lifecycle-file`；只有真实成交才使用 `--fill-price`，退出后再用 `--review-note` 封存复盘。
 
 ### 风险口径
 
@@ -343,7 +374,7 @@ StockSight-Skill/
 
 # StockSight-Skill
 
-[![Version](https://img.shields.io/badge/version-v0.5.0-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.5.0)
+[![Version](https://img.shields.io/badge/version-v0.6.0-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.6.0)
 [![Python](https://img.shields.io/badge/python-3.9%2B-2563eb)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
 [![Skill Ready](https://img.shields.io/badge/Codex%20Skill-ready-f97316)](SKILL.md)
@@ -368,6 +399,9 @@ StockSight-Skill is not just another quote script. It behaves like a compact mar
 - Premium report visuals: risk gauge, signal radar, MACD/RSI/BOLL/KDJ, risk distribution, signal composition, and data-quality/credibility panels.
 - Hard-information-first context: announcements, filings, earnings previews, and risk notices before generic market news.
 - Reproducible snapshots to keep different agents aligned on the same data, signals, news, and quality notes.
+- Point-in-time Swing backtests with chronological calibration and live out-of-sample context.
+- ATR- and structure-based execution plans with risk-budgeted position sizing.
+- A persistent candidate → triggered → holding → exited → reviewed lifecycle with fills, exits, P&L, R multiples, and review notes.
 - Minimal test suite for the core rendering and data paths.
 
 
@@ -442,6 +476,39 @@ Generate an HTML report:
 python scripts/report.py 002346 --mode detailed --html --out reports/002346.html
 python scripts/screenshot_report.py reports/002346.html --out reports/002346-full.png
 ```
+
+Backtest, calibrate, and load historical context into a live Swing report:
+
+```bash
+python scripts/backtest.py 002346 600570 300750 --days 800 \
+  --out outputs/backtests/swing-backtest.md \
+  --calibration-out outputs/backtests/swing-calibration.json
+
+python scripts/report.py 002346 --mode detailed --strategy swing \
+  --calibration-file outputs/backtests/swing-calibration.json \
+  --account-size 100000 --html --out reports/002346-swing.html
+```
+
+Persist the execution lifecycle:
+
+```bash
+python scripts/report.py 002346 --mode detailed --strategy swing \
+  --account-size 100000 --lifecycle-file portfolios/trades.json
+
+python scripts/report.py 002346 --mode detailed --strategy swing \
+  --lifecycle-file portfolios/trades.json \
+  --fill-price 16.82 --fill-shares 500
+
+python scripts/report.py 002346 --mode detailed --strategy swing \
+  --lifecycle-file portfolios/trades.json \
+  --exit-price 18.36 --exit-reason "target reached"
+
+python scripts/report.py 002346 --mode detailed --strategy swing \
+  --lifecycle-file portfolios/trades.json \
+  --review-grade B --review-note "correct direction, early add"
+```
+
+Candidate and triggered states may advance from the live daily range, but holding always requires an actual fill. Snapshot replay can display the lifecycle without mutating the ledger.
 
 Generate a US equity report:
 

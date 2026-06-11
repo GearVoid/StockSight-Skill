@@ -8,6 +8,8 @@ from .types import (
     RSIResult,
     ReportData,
     StrategyPerformance,
+    TradeLifecycle,
+    TradeLifecycleEvent,
     TradePlan,
     RiskSignal,
     StockData,
@@ -56,6 +58,20 @@ from .backtest import (
     save_calibration,
 )
 from .trade_plan import build_trade_plan, compute_atr, resize_trade_plan
+from .lifecycle import (
+    LIFECYCLE_SCHEMA_VERSION,
+    STATE_CANDIDATE,
+    STATE_EXITED,
+    STATE_HOLDING,
+    STATE_REVIEWED,
+    STATE_TRIGGERED,
+    find_current_lifecycle,
+    lifecycle_from_dict,
+    load_lifecycle_ledger,
+    plan_fingerprint,
+    save_lifecycle_ledger,
+    sync_trade_lifecycle,
+)
 from .market import detect_market, detect_tencent_prefix, detect_sina_prefix, to_eastmoney_secid
 
 __all__ = [
@@ -70,6 +86,8 @@ __all__ = [
     "RiskSignal",
     "ReportData",
     "StrategyPerformance",
+    "TradeLifecycle",
+    "TradeLifecycleEvent",
     "TradePlan",
     "TechnicalAnalysis",
     "TechnicalSignal",
@@ -120,4 +138,16 @@ __all__ = [
     "build_trade_plan",
     "compute_atr",
     "resize_trade_plan",
+    "LIFECYCLE_SCHEMA_VERSION",
+    "STATE_CANDIDATE",
+    "STATE_TRIGGERED",
+    "STATE_HOLDING",
+    "STATE_EXITED",
+    "STATE_REVIEWED",
+    "find_current_lifecycle",
+    "lifecycle_from_dict",
+    "load_lifecycle_ledger",
+    "plan_fingerprint",
+    "save_lifecycle_ledger",
+    "sync_trade_lifecycle",
 ]

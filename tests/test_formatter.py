@@ -1,7 +1,7 @@
 ﻿# -*- coding: utf-8 -*-
 import unittest
 
-from core import BOLLResult, KDJResult, MACDResult, NewsItem, RSIResult, RiskSignal, TechnicalAnalysis, TechnicalSignal, TradePlan, TrendSummary
+from core import BOLLResult, KDJResult, MACDResult, NewsItem, RSIResult, RiskSignal, TechnicalAnalysis, TechnicalSignal, TradeLifecycle, TradeLifecycleEvent, TradePlan, TrendSummary
 from formatter import (
     render_detailed_report,
     render_html_report,
@@ -14,6 +14,53 @@ from tests.fixtures import sample_report
 
 
 class FormatterTests(unittest.TestCase):
+    def test_trade_lifecycle_renders_state_and_audit_trail(self):
+        data = sample_report(
+            strategy_profile="swing",
+            trade_lifecycle=TradeLifecycle(
+                lifecycle_id="life-1",
+                stock_code="600001",
+                stock_name="Sample",
+                market="sh",
+                profile="swing",
+                state="exited",
+                state_label="已退出",
+                plan_fingerprint="600001|swing|test",
+                created_at="2026-06-10 15:00:00",
+                updated_at="2026-06-14 15:00:00",
+                entry_at="2026-06-11 10:00:00",
+                entry_price=10.2,
+                shares=100,
+                exit_at="2026-06-14 15:00:00",
+                exit_price=11.2,
+                exit_reason="达到计划目标",
+                pnl_amount=100.0,
+                pnl_percent=9.8,
+                r_multiple=1.5,
+                holding_days=3,
+                events=[
+                    TradeLifecycleEvent(
+                        from_state="holding",
+                        to_state="exited",
+                        timestamp="2026-06-14 15:00:00",
+                        price=11.2,
+                        reason="达到计划目标",
+                        source="market",
+                    )
+                ],
+            ),
+        )
+
+        markdown = render_detailed_report(data)
+        html = render_html_report(data)
+
+        self.assertIn("交易生命周期", markdown)
+        self.assertIn("当前状态：**已退出**", markdown)
+        self.assertIn("+1.50R", markdown)
+        self.assertIn("交易生命周期", html)
+        self.assertIn("lifecycle-steps", html)
+        self.assertIn("达到计划目标", html)
+
     def test_trade_plan_replaces_fixed_stop_and_target_copy(self):
         data = sample_report(
             strategy_profile="swing",
@@ -87,7 +134,7 @@ class FormatterTests(unittest.TestCase):
         self.assertIn("数据可信度", html)
         self.assertIn("行情时间", html)
         self.assertIn("Snapshot", html)
-        self.assertIn("StockSight v0.5.0", html)
+        self.assertIn("StockSight v0.6.0", html)
         self.assertIn("异动强度", html)
         self.assertIn("下行风险", html)
         self.assertIn("异动强度拆解", html)

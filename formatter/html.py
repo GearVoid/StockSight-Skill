@@ -143,6 +143,7 @@ def render_html_report(data: ReportData, mode: str = "detailed", macd_result=Non
                 profile=data.strategy_profile,
                 performance=data.strategy_performance,
                 trade_plan=data.trade_plan,
+                trade_lifecycle=data.trade_lifecycle,
             )
         )
 

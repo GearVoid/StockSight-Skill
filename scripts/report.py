@@ -37,9 +37,14 @@ from core import (  # noqa: E402
     detect,
     estimate_strategy_performance,
     evaluate_strategy_action,
+    find_current_lifecycle,
+    lifecycle_from_dict,
     load_calibration,
+    load_lifecycle_ledger,
     normalize_quote_data,
     resize_trade_plan,
+    save_lifecycle_ledger,
+    sync_trade_lifecycle,
     technical_risk_signals,
 )
 from formatter import (  # noqa: E402
@@ -148,6 +153,42 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         type=float,
         default=8.0,
         help="Reject new entries when the structural stop exceeds this percentage. Default: 8.",
+    )
+    parser.add_argument(
+        "--lifecycle-file",
+        type=Path,
+        help="Persistent JSON ledger for candidate, trigger, holding, exit, and review states.",
+    )
+    parser.add_argument(
+        "--fill-price",
+        type=float,
+        help="Confirm an actual fill and advance the current setup to holding.",
+    )
+    parser.add_argument(
+        "--fill-shares",
+        type=int,
+        help="Actual filled share count; used with --fill-price.",
+    )
+    parser.add_argument(
+        "--exit-price",
+        type=float,
+        help="Confirm an actual exit price for the current holding.",
+    )
+    parser.add_argument(
+        "--exit-reason",
+        default="",
+        help="Optional reason stored with --exit-price.",
+    )
+    parser.add_argument(
+        "--review-note",
+        default="",
+        help="Post-exit review note; seals the lifecycle as reviewed.",
+    )
+    parser.add_argument(
+        "--review-grade",
+        choices=["A", "B", "C", "D"],
+        default="",
+        help="Optional review grade used with --review-note.",
     )
     parser.add_argument(
         "--html",
@@ -328,6 +369,7 @@ def _report_to_payload(data: ReportData) -> Dict[str, Any]:
         "strategy_profile": data.strategy_profile,
         "strategy_performance": asdict(data.strategy_performance) if data.strategy_performance else None,
         "trade_plan": asdict(data.trade_plan) if data.trade_plan else None,
+        "trade_lifecycle": asdict(data.trade_lifecycle) if data.trade_lifecycle else None,
     }
 
 
@@ -368,6 +410,11 @@ def _report_from_payload(payload: Dict[str, Any]) -> ReportData:
         trade_plan=(
             _dataclass_from_dict(TradePlan, payload["trade_plan"])
             if payload.get("trade_plan")
+            else None
+        ),
+        trade_lifecycle=(
+            lifecycle_from_dict(payload["trade_lifecycle"])
+            if payload.get("trade_lifecycle")
             else None
         ),
     )
@@ -553,6 +600,55 @@ def _apply_calibration(data: ReportData, path: Path) -> None:
     )
 
 
+def _has_lifecycle_controls(args) -> bool:
+    return bool(
+        args.fill_price is not None
+        or args.fill_shares is not None
+        or args.exit_price is not None
+        or args.exit_reason
+        or args.review_note
+        or args.review_grade
+    )
+
+
+def _apply_trade_lifecycle(
+    data: ReportData,
+    path: Path,
+    args,
+    *,
+    read_only: bool,
+) -> None:
+    if len(data.stocks) != 1:
+        raise ValueError("--lifecycle-file requires a single-stock report")
+    records = load_lifecycle_ledger(path)
+    stock = data.stocks[0]
+    if read_only:
+        if _has_lifecycle_controls(args):
+            raise ValueError("snapshot replay cannot mutate a lifecycle ledger")
+        data.trade_lifecycle = find_current_lifecycle(
+            records,
+            stock.code,
+            data.strategy_profile,
+        )
+        return
+    lifecycle, changed = sync_trade_lifecycle(
+        records,
+        stock,
+        data.trade_plan,
+        timestamp=stock.timestamp or data.timestamp,
+        fill_price=args.fill_price,
+        fill_shares=args.fill_shares,
+        exit_price=args.exit_price,
+        exit_reason=args.exit_reason,
+        review_note=args.review_note,
+        review_grade=args.review_grade,
+    )
+    data.trade_lifecycle = lifecycle
+    if changed:
+        resolved = save_lifecycle_ledger(path, records)
+        print(f"Lifecycle ledger: {resolved}")
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = _build_arg_parser()
     args = parser.parse_args(argv)
@@ -566,6 +662,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         parser.error("--atr-period must be at least 2")
     if args.max_stop_percent <= 0:
         parser.error("--max-stop-percent must be positive")
+    if _has_lifecycle_controls(args) and not args.lifecycle_file:
+        parser.error("lifecycle controls require --lifecycle-file")
+    if args.fill_shares is not None and args.fill_price is None:
+        parser.error("--fill-shares requires --fill-price")
+    if args.exit_reason and args.exit_price is None:
+        parser.error("--exit-reason requires --exit-price")
+    if args.review_grade and not args.review_note:
+        parser.error("--review-grade requires --review-note")
     codes = _normalize_codes(args.codes)
 
     failed: List[str] = []
@@ -621,6 +725,24 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             _apply_calibration(data, args.calibration_file)
         except ValueError as exc:
             print(f"StockSight calibration failed: {exc}", file=sys.stderr)
+            return 2
+
+    if args.lifecycle_file:
+        if mode != "detailed":
+            print(
+                "StockSight lifecycle failed: --lifecycle-file requires detailed mode",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            _apply_trade_lifecycle(
+                data,
+                args.lifecycle_file,
+                args,
+                read_only=bool(args.from_snapshot),
+            )
+        except ValueError as exc:
+            print(f"StockSight lifecycle failed: {exc}", file=sys.stderr)
             return 2
 
     if args.save_snapshot:

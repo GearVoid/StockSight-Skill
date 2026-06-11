@@ -125,6 +125,7 @@ def _decision_card_html(
     profile: str = "neutral",
     performance=None,
     trade_plan=None,
+    trade_lifecycle=None,
 ) -> str:
     price = stock.current_price
     mk = stock.market
@@ -233,6 +234,7 @@ def _decision_card_html(
             f'<p class="muted">{_html(trade_plan.note)}</p>'
             '</div>'
         )
+    lifecycle_html = _trade_lifecycle_html(trade_lifecycle, mk)
     stop_price_html = (
         _html(format_price(trade_plan.stop_loss, mk))
         if trade_plan and trade_plan.stop_loss is not None
@@ -294,11 +296,103 @@ def _decision_card_html(
         + f'<div><dt>风险备注</dt><dd>{_html(decision.risk_note)}</dd></div>'
         + '</dl>'
         + plan_html
+        + lifecycle_html
         + performance_html
         + separation_html
         + '</div>'
         + '<p class="muted dc-disclaimer">以上参考数值基于技术指标计算，不构成投资建议。</p>'
         + "</section>"
+    )
+
+
+def _trade_lifecycle_html(lifecycle, market: str) -> str:
+    if not lifecycle:
+        return ""
+    states = [
+        ("candidate", "候选"),
+        ("triggered", "触发"),
+        ("holding", "持仓"),
+        ("exited", "退出"),
+        ("reviewed", "复盘"),
+    ]
+    current_index = next(
+        (index for index, item in enumerate(states) if item[0] == lifecycle.state),
+        0,
+    )
+    steps = []
+    for index, (state, label) in enumerate(states):
+        status = "done" if index < current_index else "active" if index == current_index else ""
+        steps.append(
+            f'<div class="lifecycle-step {status}">'
+            f'<span>{index + 1}</span><strong>{_html(label)}</strong>'
+            '</div>'
+        )
+    rows = [
+        f'<div><dt>当前状态</dt><dd>{_html(lifecycle.state_label)}</dd></div>',
+        f'<div><dt>创建时间</dt><dd>{_html(lifecycle.created_at)}</dd></div>',
+    ]
+    if lifecycle.triggered_price is not None:
+        rows.append(
+            '<div><dt>触发记录</dt><dd>'
+            f'{_html(lifecycle.triggered_at)} @ '
+            f'{_html(format_price(lifecycle.triggered_price, market))}'
+            '</dd></div>'
+        )
+    if lifecycle.entry_price is not None:
+        shares = (
+            f" · {lifecycle.shares} 股"
+            if lifecycle.shares is not None
+            else ""
+        )
+        rows.append(
+            '<div><dt>实际持仓</dt><dd>'
+            f'{_html(lifecycle.entry_at)} @ '
+            f'{_html(format_price(lifecycle.entry_price, market))}'
+            f'{_html(shares)}</dd></div>'
+        )
+    if lifecycle.exit_price is not None:
+        rows.append(
+            '<div><dt>退出记录</dt><dd>'
+            f'{_html(lifecycle.exit_at)} @ '
+            f'{_html(format_price(lifecycle.exit_price, market))}'
+            '</dd></div>'
+        )
+        rows.append(
+            f'<div><dt>退出原因</dt><dd>{_html(lifecycle.exit_reason)}</dd></div>'
+        )
+    if lifecycle.pnl_percent is not None:
+        result = f"{lifecycle.pnl_percent:+.2f}%"
+        if lifecycle.pnl_amount is not None:
+            result += f" · {lifecycle.pnl_amount:+,.2f}"
+        if lifecycle.r_multiple is not None:
+            result += f" · {lifecycle.r_multiple:+.2f}R"
+        rows.append(
+            f'<div><dt>交易结果</dt><dd>{_html(result)}</dd></div>'
+        )
+    if lifecycle.holding_days is not None:
+        rows.append(
+            f'<div><dt>持有天数</dt><dd>{lifecycle.holding_days} 天</dd></div>'
+        )
+    if lifecycle.review_note:
+        grade = f"{lifecycle.review_grade} · " if lifecycle.review_grade else ""
+        rows.append(
+            f'<div><dt>复盘</dt><dd>{_html(grade + lifecycle.review_note)}</dd></div>'
+        )
+    events = "".join(
+        '<li>'
+        f'<span>{_html(event.timestamp)}</span>'
+        f'<strong>{_html((event.from_state or "new") + " → " + event.to_state)}</strong>'
+        f'<em>{_html(event.reason)}</em>'
+        '</li>'
+        for event in lifecycle.events[-5:]
+    )
+    return (
+        '<div class="trade-lifecycle-details">'
+        '<h3>交易生命周期</h3>'
+        f'<div class="lifecycle-steps">{"".join(steps)}</div>'
+        f'<dl>{"".join(rows)}</dl>'
+        f'<ul class="lifecycle-events">{events}</ul>'
+        '</div>'
     )
 
 
