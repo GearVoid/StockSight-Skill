@@ -613,6 +613,80 @@ def _style() -> str:
     }
     .trade-plan-details dt { color: #6b7280; font-size: 12px; }
     .trade-plan-details dd { margin: 3px 0 0; font-weight: 700; color: #172033; }
+    .trade-lifecycle-details {
+      margin-top: 18px;
+      padding: 16px;
+      border: 1px solid #d8def3;
+      border-radius: 14px;
+      background: #f7f8fe;
+    }
+    .trade-lifecycle-details h3 { margin: 0 0 12px; font-size: 16px; }
+    .lifecycle-steps {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .lifecycle-step {
+      padding: 9px 6px;
+      border: 1px solid #e2e5ef;
+      border-radius: 10px;
+      background: white;
+      color: #98a0b3;
+      text-align: center;
+    }
+    .lifecycle-step span {
+      display: block;
+      width: 22px;
+      height: 22px;
+      margin: 0 auto 5px;
+      border-radius: 50%;
+      background: #eef0f6;
+      font-size: 12px;
+      line-height: 22px;
+    }
+    .lifecycle-step strong { font-size: 12px; }
+    .lifecycle-step.done {
+      border-color: #b9ddca;
+      color: #16794c;
+      background: #f4fbf7;
+    }
+    .lifecycle-step.done span { color: white; background: #16794c; }
+    .lifecycle-step.active {
+      border-color: #9fb4ef;
+      color: #2454d6;
+      background: #f2f5ff;
+      box-shadow: inset 0 0 0 1px #c8d4f8;
+    }
+    .lifecycle-step.active span { color: white; background: #2454d6; }
+    .trade-lifecycle-details dl {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px 14px;
+      margin: 0 0 12px;
+    }
+    .trade-lifecycle-details dl div {
+      padding: 9px 10px;
+      border: 1px solid #e3e6f1;
+      border-radius: 9px;
+      background: white;
+    }
+    .trade-lifecycle-details dt { color: #6b7280; font-size: 12px; }
+    .trade-lifecycle-details dd { margin: 3px 0 0; font-weight: 700; color: #172033; }
+    .lifecycle-events {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .lifecycle-events li {
+      display: grid;
+      grid-template-columns: 145px 120px 1fr;
+      gap: 8px;
+      padding: 7px 0;
+      border-top: 1px solid #e3e6f1;
+      font-size: 12px;
+    }
+    .lifecycle-events span, .lifecycle-events em { color: #6b7280; font-style: normal; }
     .dc-strategy-details dl {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1247,6 +1321,9 @@ def _style() -> str:
       .dc-strategy-details dl { grid-template-columns: 1fr; }
       .strategy-performance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .trade-plan-details dl { grid-template-columns: 1fr; }
+      .lifecycle-steps { grid-template-columns: repeat(5, minmax(52px, 1fr)); overflow-x: auto; }
+      .trade-lifecycle-details dl { grid-template-columns: 1fr; }
+      .lifecycle-events li { grid-template-columns: 1fr; gap: 2px; }
       .radar-dashboard { grid-template-columns: 1fr; }
       .radar-stage { min-height: auto; }
       .signal-row { grid-template-columns: 32px 1fr; }

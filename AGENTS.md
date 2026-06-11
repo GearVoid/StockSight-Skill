@@ -70,6 +70,34 @@ python scripts/report.py 002346 --mode detailed --strategy swing \
 
 The plan uses ATR(14), recent structural support, 20-day resistance, and an account risk budget. It outputs an entry trigger/range, structural stop, two R-based targets, stop distance, and position size. A-share quantities are rounded down to 100-share lots. Do not replace unavailable history with fixed `-5%` / `+5.6%` levels. When stop distance exceeds the configured maximum, price has already run beyond the entry zone, or the strategy is in exit/risk-avoid mode, preserve the wait/zero-position result.
 
+Persist the candidate-to-review lifecycle:
+
+```bash
+python scripts/report.py 002346 --mode detailed --strategy swing \
+  --account-size 100000 --lifecycle-file portfolios/trades.json \
+  --html --out reports/002346-live.html
+
+python scripts/report.py 002346 --mode detailed --strategy swing \
+  --lifecycle-file portfolios/trades.json \
+  --fill-price 16.82 --fill-shares 500
+
+python scripts/report.py 002346 --mode detailed --strategy swing \
+  --lifecycle-file portfolios/trades.json \
+  --exit-price 18.36 --exit-reason "target reached"
+
+python scripts/report.py 002346 --mode detailed --strategy swing \
+  --lifecycle-file portfolios/trades.json \
+  --review-grade B --review-note "correct direction, early add"
+```
+
+Lifecycle rules:
+
+- Candidate and triggered states can advance automatically from the live daily price range.
+- Holding requires an actual fill confirmation through `--fill-price`; do not treat a signal as a fill.
+- A holding can exit automatically when the daily range hits the planned stop or second target, or when the strategy becomes invalid. A manual `--exit-price` records the actual exit instead.
+- Review is allowed only after exit and stores the note, optional A-D grade, P&L, R multiple, holding days, and the full transition audit trail.
+- Snapshot replay may display a lifecycle from `--lifecycle-file`, but it must not mutate the ledger.
+
 Scan A-share industry/concept mainline radar:
 
 ```bash

@@ -533,6 +533,69 @@ def render_detailed_report(data: ReportData) -> str:
         parts.append(f"- 执行备注：{plan.note}")
     else:
         parts.append("- 波动率交易计划：不可用（当前报告未保存足够的历史 K 线信息）")
+    lifecycle = data.trade_lifecycle
+    if lifecycle:
+        parts.extend(
+            [
+                "",
+                "### 交易生命周期",
+                "",
+                f"- 当前状态：**{lifecycle.state_label}**",
+                f"- 生命周期 ID：`{lifecycle.lifecycle_id}`",
+                f"- 创建时间：{lifecycle.created_at}",
+            ]
+        )
+        if lifecycle.triggered_at:
+            parts.append(
+                f"- 触发记录：{lifecycle.triggered_at}"
+                + (
+                    f" @ {format_price(lifecycle.triggered_price, mk)}"
+                    if lifecycle.triggered_price is not None
+                    else ""
+                )
+            )
+        if lifecycle.entry_price is not None:
+            parts.append(
+                f"- 实际持仓：{lifecycle.entry_at} @ "
+                f"{format_price(lifecycle.entry_price, mk)}"
+                + (
+                    f"，{lifecycle.shares} 股"
+                    if lifecycle.shares is not None
+                    else ""
+                )
+            )
+        if lifecycle.exit_price is not None:
+            parts.append(
+                f"- 退出记录：{lifecycle.exit_at} @ "
+                f"{format_price(lifecycle.exit_price, mk)}"
+            )
+            parts.append(f"- 退出原因：{lifecycle.exit_reason}")
+        if lifecycle.pnl_percent is not None:
+            result = f"{lifecycle.pnl_percent:+.2f}%"
+            if lifecycle.pnl_amount is not None:
+                result += f"，{lifecycle.pnl_amount:+,.2f}"
+            if lifecycle.r_multiple is not None:
+                result += f"，{lifecycle.r_multiple:+.2f}R"
+            parts.append(f"- 交易结果：{result}")
+        if lifecycle.holding_days is not None:
+            parts.append(f"- 持有天数：{lifecycle.holding_days} 天")
+        if lifecycle.review_note:
+            grade = f"（{lifecycle.review_grade}）" if lifecycle.review_grade else ""
+            parts.append(f"- 复盘{grade}：{lifecycle.review_note}")
+        if lifecycle.events:
+            parts.append("- 最近迁移：")
+            for event in lifecycle.events[-5:]:
+                transition = (
+                    f"{event.from_state or 'new'} → {event.to_state}"
+                )
+                price_text = (
+                    f" @ {format_price(event.price, mk)}"
+                    if event.price is not None
+                    else ""
+                )
+                parts.append(
+                    f"  - {event.timestamp} · {transition}{price_text} · {event.reason}"
+                )
     if decision.basis:
         parts.append(f"- 触发依据：{'；'.join(decision.basis)}")
     parts.append(f"- 确认条件：{decision.confirmation}")

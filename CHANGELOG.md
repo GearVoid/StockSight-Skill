@@ -1,17 +1,21 @@
 ﻿# Changelog
 
-## Unreleased
+## v0.6.0 - 2026-06-11
+
+Strategy research and execution lifecycle release. StockSight now connects historical validation, calibrated live context, volatility-based execution plans, and persistent post-trade review.
 
 ### Added
 - Added a point-in-time Swing backtest CLI with versioned local history caching, next-open entry assumptions, 5/10/20-day net returns, MFE/MAE, and CSV event ledgers.
 - Added chronological holdout probability calibration with Brier Score and expected calibration error diagnostics.
 - Added optional `--calibration-file` support so detailed Swing reports can display matched historical probability, return, sample-size, and reliability context.
 - Added ATR- and structure-based trade plans with entry triggers, stop levels, two R-based targets, account risk budgets, and lot-aware position sizing.
+- Added a persistent candidate → triggered → holding → exited → reviewed lifecycle ledger with audited transitions, actual fill/exit confirmation, automatic stop/target handling, P&L, R multiple, holding days, and post-trade review.
 
 ### Changed
 - Exposed Swing score, score maximum, score factors, and strategy version as structured `StrategyDecision` fields.
 - Expanded EastMoney daily history bars with optional amount, change-percent, and turnover fields for historical reconstruction.
 - Replaced fixed `-5%` stop and `+5.6%` target copy with snapshot-safe volatility plans; missing history now renders the plan as unavailable.
+- Updated the README report screenshots and bumped the README badge and HTML footer version to `v0.6.0`.
 
 ## v0.5.0 - 2026-06-09
 

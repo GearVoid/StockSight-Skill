@@ -303,6 +303,9 @@ class ReportData:
     trade_plan: Optional["TradePlan"] = None
     """基于价格结构、ATR 和账户风险预算生成的交易计划。"""
 
+    trade_lifecycle: Optional["TradeLifecycle"] = None
+    """候选、触发、持仓、退出和复盘的当前交易生命周期。"""
+
 
 @dataclass
 class StrategyPerformance:
@@ -358,3 +361,54 @@ class TradePlan:
     basis: List[str] = field(default_factory=list)
     invalidation: str = ""
     note: str = ""
+
+
+@dataclass
+class TradeLifecycleEvent:
+    """One auditable transition in a trade lifecycle."""
+
+    from_state: str
+    to_state: str
+    timestamp: str
+    price: Optional[float] = None
+    reason: str = ""
+    source: str = "system"
+
+
+@dataclass
+class TradeLifecycle:
+    """Persistent candidate-to-review lifecycle for one strategy setup."""
+
+    lifecycle_id: str
+    stock_code: str
+    stock_name: str
+    market: str
+    profile: str
+    state: str
+    state_label: str
+    plan_fingerprint: str
+    created_at: str
+    updated_at: str
+    action: str = ""
+    trigger_price: Optional[float] = None
+    entry_low: Optional[float] = None
+    entry_high: Optional[float] = None
+    planned_stop: Optional[float] = None
+    target_1: Optional[float] = None
+    target_2: Optional[float] = None
+    triggered_at: str = ""
+    triggered_price: Optional[float] = None
+    entry_at: str = ""
+    entry_price: Optional[float] = None
+    shares: Optional[int] = None
+    exit_at: str = ""
+    exit_price: Optional[float] = None
+    exit_reason: str = ""
+    review_at: str = ""
+    review_note: str = ""
+    review_grade: str = ""
+    pnl_amount: Optional[float] = None
+    pnl_percent: Optional[float] = None
+    r_multiple: Optional[float] = None
+    holding_days: Optional[int] = None
+    events: List[TradeLifecycleEvent] = field(default_factory=list)

@@ -3,8 +3,17 @@ import tempfile
 import unittest
 import json
 from pathlib import Path
+from unittest.mock import patch
 
-from core import RSIResult, StrategyPerformance, TechnicalAnalysis, TechnicalSignal, TradePlan
+from core import (
+    RSIResult,
+    StrategyPerformance,
+    TechnicalAnalysis,
+    TechnicalSignal,
+    TradeLifecycle,
+    TradeLifecycleEvent,
+    TradePlan,
+)
 from scripts import report
 from tests.fixtures import sample_report
 
@@ -27,6 +36,73 @@ def sample_technical():
 
 
 class ReportSnapshotTests(unittest.TestCase):
+    def test_cli_persists_trigger_and_manual_fill_to_lifecycle_ledger(self):
+        data = sample_report(
+            strategy_profile="swing",
+            trade_plan=TradePlan(
+                profile="swing",
+                action="波段候选",
+                status="ready",
+                status_label="条件触发后执行",
+                entry_style="突破触发",
+                trigger_price=10.0,
+                entry_low=10.0,
+                entry_high=10.3,
+                stop_loss=9.4,
+                target_1=10.9,
+                target_2=11.5,
+                suggested_position_percent=8.0,
+                shares=100,
+            ),
+        )
+        data.stocks[0].current_price = 10.1
+        data.stocks[0].timestamp = "2026-06-11 10:00:00"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            ledger = base / "trades.json"
+            markdown = base / "sample.md"
+            with patch.object(
+                report,
+                "_build_live_report",
+                return_value=(data, "detailed", [], []),
+            ):
+                first_exit = report.main(
+                    [
+                        "600001",
+                        "--mode",
+                        "detailed",
+                        "--lifecycle-file",
+                        str(ledger),
+                        "--markdown-out",
+                        str(markdown),
+                    ]
+                )
+                second_exit = report.main(
+                    [
+                        "600001",
+                        "--mode",
+                        "detailed",
+                        "--lifecycle-file",
+                        str(ledger),
+                        "--fill-price",
+                        "10.12",
+                        "--fill-shares",
+                        "100",
+                        "--markdown-out",
+                        str(markdown),
+                    ]
+                )
+
+            records = report.load_lifecycle_ledger(ledger)
+            markdown_text = markdown.read_text(encoding="utf-8")
+
+        self.assertEqual(first_exit, 0)
+        self.assertEqual(second_exit, 0)
+        self.assertEqual(records[-1].state, "holding")
+        self.assertEqual(records[-1].entry_price, 10.12)
+        self.assertIn("当前状态：**持仓中**", markdown_text)
+
     def test_snapshot_roundtrip_preserves_report_payload(self):
         data = sample_report(
             technical=sample_technical(),
@@ -53,6 +129,31 @@ class ReportSnapshotTests(unittest.TestCase):
                 target_1=11.1,
                 target_2=11.7,
                 suggested_position_percent=8.0,
+            ),
+            trade_lifecycle=TradeLifecycle(
+                lifecycle_id="life-1",
+                stock_code="600001",
+                stock_name="Sample",
+                market="sh",
+                profile="mainline",
+                state="holding",
+                state_label="持仓中",
+                plan_fingerprint="600001|mainline|test",
+                created_at="2026-06-10 15:00:00",
+                updated_at="2026-06-11 10:00:00",
+                entry_at="2026-06-11 10:00:00",
+                entry_price=10.2,
+                shares=100,
+                events=[
+                    TradeLifecycleEvent(
+                        from_state="triggered",
+                        to_state="holding",
+                        timestamp="2026-06-11 10:00:00",
+                        price=10.2,
+                        reason="实际成交确认",
+                        source="manual",
+                    )
+                ],
             ),
         )
 
@@ -82,6 +183,9 @@ class ReportSnapshotTests(unittest.TestCase):
         self.assertEqual(restored.strategy_performance.sample_size, 88)
         self.assertIsNotNone(restored.trade_plan)
         self.assertEqual(restored.trade_plan.trigger_price, 10.2)
+        self.assertIsNotNone(restored.trade_lifecycle)
+        self.assertEqual(restored.trade_lifecycle.state, "holding")
+        self.assertEqual(restored.trade_lifecycle.events[0].to_state, "holding")
         self.assertEqual(restored.snapshot_source, str(snapshot))
         self.assertEqual(meta["mode"], "detailed")
         self.assertEqual(meta["provider"], "unit")
