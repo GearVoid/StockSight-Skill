@@ -1,5 +1,11 @@
 ﻿# StockSight-Skill
 
+<a id="readme-zh"></a>
+
+<div align="right">
+  <strong>简体中文</strong> · <a href="#readme-en">English</a>
+</div>
+
 [![Version](https://img.shields.io/badge/version-v0.6.0-111827)](https://github.com/GearVoid/StockSight-Skill/releases/tag/v0.6.0)
 [![Python](https://img.shields.io/badge/python-3.9%2B-2563eb)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
@@ -371,6 +377,12 @@ StockSight-Skill/
 报告中的风险等级、目标价、止损参考和操作建议只基于技术指标与公开信息整理，不构成投资建议。
 
 ---
+
+<a id="readme-en"></a>
+
+<div align="right">
+  <a href="#readme-zh">简体中文</a> · <strong>English</strong>
+</div>
 
 # StockSight-Skill
 
